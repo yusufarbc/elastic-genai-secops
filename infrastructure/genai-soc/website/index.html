@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elastic-SecOps-Mastery | GenAI-Powered SOC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            750: '#2d3748',
+                            800: '#1f2937',
+                            900: '#111827',
+                        }
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .animation-delay-100 {
+            animation-delay: 100ms;
+        }
+
+        .animation-delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .animation-delay-300 {
+            animation-delay: 300ms;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 font-sans antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- Gradient Background -->
+    <div class="fixed inset-0 z-0 pointer-events-none">
+        <div
+            class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/30 via-gray-900 to-gray-900">
+        </div>
+        <div class="absolute top-0 right-0 w-1/2 h-1/2 bg-purple-500/10 blur-[120px] rounded-full"></div>
+        <div class="absolute bottom-0 left-0 w-1/2 h-1/2 bg-blue-500/10 blur-[120px] rounded-full"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="container mx-auto px-6 py-6 flex justify-between items-center relative z-20">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <i class="fas fa-shield-cat text-white text-xl"></i>
+            </div>
+            <span class="text-xl font-bold tracking-tight">Elastic<span class="text-blue-400">SecOps</span></span>
+        </div>
+        <div class="flex gap-6">
+            <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery" target="_blank"
+                class="text-gray-400 hover:text-white transition">
+                <i class="fab fa-github text-2xl"></i>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="container mx-auto px-6 py-24 text-center relative z-10">
+        <div
+            class="inline-block px-4 py-1 mb-6 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium animate-fade-in-up">
+            🚀 Now with LLM-Powered Active Defense
+        </div>
+        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight animate-fade-in-up animation-delay-100">
+            Next-Gen <br>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Security
+                Operations</span>
+        </h1>
+        <p class="text-xl md:text-2xl mb-12 text-gray-400 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
+            A production-ready SOC framework combining the hardened <strong>Elastic Stack</strong> with
+            <strong>Generative AI</strong> for autonomous threat hunting and active defense.
+        </p>
+        <div class="flex justify-center gap-4 animate-fade-in-up animation-delay-300">
+            <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_docker.md" target="_blank"
+                class="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg font-bold hover:from-blue-500 hover:to-blue-600 transition transform hover:scale-105 shadow-lg shadow-blue-500/25 flex items-center gap-2">
+                <i class="fas fa-rocket"></i> Get Started
+            </a>
+            <a href="#docs"
+                class="px-8 py-4 bg-gray-800 rounded-lg font-bold hover:bg-gray-750 transition flex items-center gap-2 border border-gray-700">
+                <i class="fas fa-book"></i> Read Docs
+            </a>
+        </div>
+    </header>
+
+    <!-- Features Grid -->
+    <section class="container mx-auto px-6 py-20 relative z-10">
+        <div class="grid md:grid-cols-3 gap-8">
+            <div
+                class="p-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 hover:border-blue-500/50 transition duration-300">
+                <div
+                    class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 mb-6 text-2xl">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-4">Active Defense</h3>
+                <p class="text-gray-400 leading-relaxed">
+                    Moving beyond passive logging. Leverage the <strong>Elastic Endpoint</strong> and <strong>Reflex
+                        Engine</strong> to block malware execution in sub-milliseconds without cloud dependencies.
+                </p>
+            </div>
+            <div
+                class="p-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 hover:border-purple-500/50 transition duration-300">
+                <div
+                    class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400 mb-6 text-2xl">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-4">GenAI Integration</h3>
+                <p class="text-gray-400 leading-relaxed">
+                    The local <strong>MCP Server</strong> acts as a bridge, translating LLM intent into executed
+                    PowerShell commands for automated triage and remediation.
+                </p>
+            </div>
+            <div
+                class="p-8 bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 hover:border-green-500/50 transition duration-300">
+                <div
+                    class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center text-green-400 mb-6 text-2xl">
+                    <i class="fas fa-laptop-code"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-4">Hardened Infrastructure</h3>
+                <p class="text-gray-400 leading-relaxed">
+                    Production-grade setup. <strong>TLS encryption</strong> everywhere, rigorous <strong>ECS</strong>
+                    mapping, and <strong>Persistent Queues</strong> for data durability.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Visualization -->
+    <section class="bg-gray-800/30 py-20 border-y border-gray-800 relative z-10">
+        <div class="container mx-auto px-6">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-16">How It Works</h2>
+            <div class="flex flex-col md:flex-row items-center justify-center gap-12 max-w-5xl mx-auto">
+                <!-- Step 1 -->
+                <div class="flex-1 text-center relative group">
+                    <div
+                        class="w-24 h-24 mx-auto bg-gray-800 rounded-full flex items-center justify-center border-2 border-blue-500 mb-6 shadow-[0_0_20px_rgba(59,130,246,0.2)] group-hover:scale-110 transition">
+                        <i class="fas fa-user-secret text-3xl text-blue-400"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">1. Analyst Query</h3>
+                    <p class="text-sm text-gray-400">"Is host WORKSTATION-1 compromised?"</p>
+                </div>
+
+                <!-- Connector -->
+                <div class="hidden md:block w-32 h-1 bg-gradient-to-r from-blue-500/50 to-purple-500/50"></div>
+
+                <!-- Step 2 -->
+                <div class="flex-1 text-center relative group">
+                    <div
+                        class="w-24 h-24 mx-auto bg-gray-800 rounded-full flex items-center justify-center border-2 border-purple-500 mb-6 shadow-[0_0_20px_rgba(168,85,247,0.2)] group-hover:scale-110 transition">
+                        <i class="fas fa-microchip text-3xl text-purple-400"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">2. LLM & MCP</h3>
+                    <p class="text-sm text-gray-400">Decides tool usage & executes PowerShell investigation.</p>
+                </div>
+
+                <!-- Connector -->
+                <div class="hidden md:block w-32 h-1 bg-gradient-to-r from-purple-500/50 to-green-500/50"></div>
+
+                <!-- Step 3 -->
+                <div class="flex-1 text-center relative group">
+                    <div
+                        class="w-24 h-24 mx-auto bg-gray-800 rounded-full flex items-center justify-center border-2 border-green-500 mb-6 shadow-[0_0_20px_rgba(34,197,94,0.2)] group-hover:scale-110 transition">
+                        <i class="fas fa-database text-3xl text-green-400"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">3. Elastic Stack</h3>
+                    <p class="text-sm text-gray-400">Ingests telemetry & enables historical correlation.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Docs Section -->
+    <section id="docs" class="container mx-auto px-6 py-20 relative z-10">
+        <h2 class="text-3xl md:text-4xl font-bold text-center mb-6">Documentation Hub</h2>
+        <p class="text-center text-gray-400 mb-16 max-w-2xl mx-auto">Everything you need to build, configure, and
+            operate the SOC.</p>
+
+        <div class="grid gap-12">
+
+            <!-- Setup Guides -->
+            <div>
+                <h3 class="text-2xl font-bold mb-8 border-b border-gray-700 pb-4 inline-block"><i
+                        class="fas fa-hammer mr-3 text-blue-400"></i>Installation</h3>
+                <div class="grid md:grid-cols-4 gap-6">
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_docker.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <div class="text-blue-400 mb-4 group-hover:scale-110 transition duration-300 origin-left"><i
+                                class="fab fa-docker text-3xl"></i></div>
+                        <h4 class="text-lg font-bold mb-2">Docker Setup</h4>
+                        <p class="text-sm text-gray-400">Quick start with Docker Compose.</p>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_kubernetes.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <div class="text-purple-400 mb-4 group-hover:scale-110 transition duration-300 origin-left"><i
+                                class="fas fa-cubes text-3xl"></i></div>
+                        <h4 class="text-lg font-bold mb-2">Kubernetes (ECK)</h4>
+                        <p class="text-sm text-gray-400">Production deployment via ECK Operator.</p>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_baremetal.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <div class="text-green-400 mb-4 group-hover:scale-110 transition duration-300 origin-left"><i
+                                class="fas fa-server text-3xl"></i></div>
+                        <h4 class="text-lg font-bold mb-2">Bare Metal</h4>
+                        <p class="text-sm text-gray-400">Manual Ubuntu/Debian guide.</p>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_genai.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <div class="text-yellow-400 mb-4 group-hover:scale-110 transition duration-300 origin-left"><i
+                                class="fas fa-bolt text-3xl"></i></div>
+                        <h4 class="text-lg font-bold mb-2">GenAI Service</h4>
+                        <p class="text-sm text-gray-400">Setup MCP Server & Python Env.</p>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Deep Dive / Internals -->
+            <div>
+                <h3 class="text-2xl font-bold mb-8 border-b border-gray-700 pb-4 inline-block"><i
+                        class="fas fa-layer-group mr-3 text-purple-400"></i>Deep Dive & Internals</h3>
+                <div class="grid md:grid-cols-4 gap-6">
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/component_elasticsearch.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <h4 class="text-lg font-bold mb-2 group-hover:text-blue-400 transition">Elasticsearch</h4>
+                        <p class="text-sm text-gray-400">Segments, Freezing, & ILM policies.</p>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/component_kibana.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <h4 class="text-lg font-bold mb-2 group-hover:text-pink-400 transition">Kibana</h4>
+                        <p class="text-sm text-gray-400">Saved Objects, Spaces & Encryption.</p>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/component_logstash.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <h4 class="text-lg font-bold mb-2 group-hover:text-yellow-400 transition">Logstash</h4>
+                        <p class="text-sm text-gray-400">Persistent Queues & Pipeline tuning.</p>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/project_context.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group">
+                        <h4 class="text-lg font-bold mb-2 group-hover:text-green-400 transition">Architecture</h4>
+                        <p class="text-sm text-gray-400">Context, History & Design choices.</p>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Operations -->
+            <div>
+                <h3 class="text-2xl font-bold mb-8 border-b border-gray-700 pb-4 inline-block"><i
+                        class="fas fa-terminal mr-3 text-green-400"></i>Operations</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/hunting.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group flex items-start">
+                        <div class="mr-4 mt-1 text-red-400 group-hover:scale-110 transition"><i
+                                class="fas fa-crosshairs text-2xl"></i></div>
+                        <div>
+                            <h4 class="text-lg font-bold mb-1">Threat Hunting</h4>
+                            <p class="text-sm text-gray-400">KQL Queries & Detection Scenarios.</p>
+                        </div>
+                    </a>
+                    <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/troubleshooting.md"
+                        class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block group flex items-start">
+                        <div class="mr-4 mt-1 text-gray-400 group-hover:text-white transition"><i
+                                class="fas fa-wrench text-2xl"></i></div>
+                        <div>
+                            <h4 class="text-lg font-bold mb-1">Troubleshooting</h4>
+                            <p class="text-sm text-gray-400">Resolution guides for common errors.</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 border-t border-gray-800 py-12 mt-20 relative z-10">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-gray-500 mb-4">&copy; 2024 Elastic SecOps Mastery. Built with ❤️ and ☕.</p>
+            <div class="flex justify-center gap-6">
+                <a href="#" class="text-gray-600 hover:text-white transition"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="text-gray-600 hover:text-white transition"><i class="fab fa-github"></i></a>
+                <a href="#" class="text-gray-600 hover:text-white transition"><i class="fab fa-linkedin"></i></a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>

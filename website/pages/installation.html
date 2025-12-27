@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Guide - ELK Stack Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'elk-primary': '#005571',
+                        'elk-secondary': '#00BFB3',
+                        'elk-accent': '#F04E98',
+                        'elk-dark': '#1a1a1a',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <a href="../index.html" class="flex items-center space-x-3">
+                    <i class="fas fa-layer-group text-elk-primary text-3xl"></i>
+                    <span class="text-2xl font-bold text-elk-dark">ELK Stack Lab</span>
+                </a>
+                <div class="hidden md:flex space-x-8">
+                    <a href="../index.html" class="text-gray-700 hover:text-elk-primary transition">Home</a>
+                    <a href="components.html" class="text-gray-700 hover:text-elk-primary transition">Components</a>
+                    <a href="architecture.html" class="text-gray-700 hover:text-elk-primary transition">Architecture</a>
+                    <a href="troubleshooting.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Troubleshooting</a>
+                </div>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-elk-primary text-white px-6 py-2 rounded-lg hover:bg-elk-secondary transition">
+                    <i class="fab fa-github mr-2"></i>GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="bg-elk-primary text-white py-16">
+        <div class="container mx-auto px-6">
+            <h1 class="text-4xl font-bold mb-4">Installation Guide</h1>
+            <p class="text-xl opacity-90">Step-by-step instructions to deploy the ELK Stack on Ubuntu 22.04</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-12">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Sidebar -->
+            <aside class="lg:w-1/4">
+                <div class="bg-white rounded-xl shadow-sm p-6 sticky top-24">
+                    <h3 class="font-bold text-lg mb-4 text-elk-dark">Table of Contents</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li><a href="#prerequisites" class="hover:text-elk-primary transition"><i
+                                    class="fas fa-check-circle mr-2 text-xs"></i>Prerequisites</a></li>
+                        <li><a href="#quick-start" class="hover:text-elk-primary transition"><i
+                                    class="fas fa-bolt mr-2 text-xs"></i>Quick Start</a></li>
+                        <li><a href="#verification" class="hover:text-elk-primary transition"><i
+                                    class="fas fa-search mr-2 text-xs"></i>Verification</a></li>
+                        <li><a href="#log-sources" class="hover:text-elk-primary transition"><i
+                                    class="fas fa-network-wired mr-2 text-xs"></i>Log Sources</a></li>
+                        <li><a href="#cleanup" class="hover:text-elk-primary transition"><i
+                                    class="fas fa-trash-alt mr-2 text-xs"></i>Cleanup</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Content -->
+            <div class="lg:w-3/4 space-y-12">
+                <!-- Prerequisites -->
+                <section id="prerequisites" class="bg-white rounded-xl shadow-sm p-8">
+                    <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Prerequisites</h2>
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <div class="bg-green-100 text-green-600 p-2 rounded-lg mr-4 mt-1"><i
+                                    class="fas fa-server"></i></div>
+                            <div>
+                                <h4 class="font-bold">Operating System</h4>
+                                <p class="text-gray-600">Ubuntu 22.04 LTS (Jammy Jellyfish)</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="bg-blue-100 text-blue-600 p-2 rounded-lg mr-4 mt-1"><i
+                                    class="fas fa-microchip"></i></div>
+                            <div>
+                                <h4 class="font-bold">System Resources</h4>
+                                <p class="text-gray-600">Minimum: 4 vCPU, 16 GB RAM<br>Recommended: 8 vCPU, 32 GB RAM, 1
+                                    TB SSD</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <div class="bg-purple-100 text-purple-600 p-2 rounded-lg mr-4 mt-1"><i
+                                    class="fas fa-shield-alt"></i></div>
+                            <div>
+                                <h4 class="font-bold">Privileges</h4>
+                                <p class="text-gray-600">Root or sudo access required for installation.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </section>
+
+                <!-- Quick Start -->
+                <section id="quick-start" class="bg-white rounded-xl shadow-sm p-8">
+                    <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Quick Start Installation</h2>
+                    <p class="text-gray-600 mb-6">Run the following commands to clone the repository and start the
+                        automated installation script:</p>
+
+                    <div class="bg-gray-900 rounded-lg p-6 text-gray-100 font-mono text-sm relative group">
+                        <pre>git clone https://github.com/yusufarbc/ELK-Ubuntu-Jammy-Build.git
+cd ELK-Ubuntu-Jammy-Build
+chmod +x scripts/install/elk_setup_ubuntu_jammy.sh
+sudo ./scripts/install/elk_setup_ubuntu_jammy.sh</pre>
+                    </div>
+
+                    <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <p class="text-yellow-800">
+                            <strong>Note:</strong> The script will output critical credentials at the end, including the
+                            <span class="font-mono bg-yellow-100 px-1 rounded">elastic</span> user password and
+                            <span class="font-mono bg-yellow-100 px-1 rounded">Kibana enrollment token</span>.
+                            Save these immediately!
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Verification -->
+                <section id="verification" class="bg-white rounded-xl shadow-sm p-8">
+                    <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Verification</h2>
+                    <p class="text-gray-600 mb-4">Validate that all services are running correctly:</p>
+
+                    <h4 class="font-bold mt-4 mb-2">1. Check Service Status</h4>
+                    <div class="bg-gray-900 rounded-lg p-4 text-gray-100 font-mono text-sm mb-4">
+                        <pre>systemctl status elasticsearch kibana logstash --no-pager</pre>
+                    </div>
+
+                    <h4 class="font-bold mt-4 mb-2">2. Check Elasticsearch Health</h4>
+                    <div class="bg-gray-900 rounded-lg p-4 text-gray-100 font-mono text-sm mb-4">
+                        <pre>curl -s --cacert /etc/elasticsearch/certs/ca.crt https://localhost:9200 | jq .</pre>
+                    </div>
+
+                    <h4 class="font-bold mt-4 mb-2">3. Verify Logstash Pipelines</h4>
+                    <div class="bg-gray-900 rounded-lg p-4 text-gray-100 font-mono text-sm">
+                        <pre>sudo /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t</pre>
+                    </div>
+                </section>
+
+                <!-- Log Sources -->
+                <section id="log-sources" class="bg-white rounded-xl shadow-sm p-8">
+                    <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Connecting Log Sources</h2>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="border rounded-lg p-4">
+                            <h3 class="font-bold text-lg mb-2 text-elk-primary">Windows (WEF)</h3>
+                            <p class="text-sm text-gray-600 mb-2">Winlogbeat on WEC Server</p>
+                            <span class="bg-gray-100 text-gray-800 text-xs font-mono px-2 py-1 rounded">Port:
+                                5045/tcp</span>
+                        </div>
+                        <div class="border rounded-lg p-4">
+                            <h3 class="font-bold text-lg mb-2 text-elk-primary">Syslog (RFC3164)</h3>
+                            <p class="text-sm text-gray-600 mb-2">Network devices, Linux</p>
+                            <span class="bg-gray-100 text-gray-800 text-xs font-mono px-2 py-1 rounded">Port:
+                                5514/udp+tcp</span>
+                        </div>
+                        <div class="border rounded-lg p-4">
+                            <h3 class="font-bold text-lg mb-2 text-elk-primary">Syslog (RFC5424)</h3>
+                            <p class="text-sm text-gray-600 mb-2">Modern syslog sources</p>
+                            <span class="bg-gray-100 text-gray-800 text-xs font-mono px-2 py-1 rounded">Port:
+                                5515/tcp</span>
+                        </div>
+                        <div class="border rounded-lg p-4">
+                            <h3 class="font-bold text-lg mb-2 text-elk-primary">Beats</h3>
+                            <p class="text-sm text-gray-600 mb-2">FortiGate, Filebeat agents</p>
+                            <span class="bg-gray-100 text-gray-800 text-xs font-mono px-2 py-1 rounded">Port:
+                                5044/tcp</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Cleanup -->
+                <section id="cleanup" class="bg-white rounded-xl shadow-sm p-8 bg-red-50 border-l-4 border-red-500">
+                    <h2 class="text-2xl font-bold mb-6 text-red-700 border-b border-red-200 pb-2">Cleanup /
+                        Reinstallation</h2>
+                    <p class="text-red-900 mb-4">To completely remove all components and data:</p>
+                    <div class="bg-gray-900 rounded-lg p-6 text-gray-100 font-mono text-sm">
+                        <pre>sudo systemctl stop logstash kibana elasticsearch || true
+sudo rm -rf /etc/elasticsearch /etc/kibana /etc/logstash
+sudo rm -rf /var/log/elasticsearch /var/log/logstash
+sudo rm -rf /var/lib/elasticsearch /var/lib/logstash
+sudo systemctl daemon-reload</pre>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-elk-dark text-white py-8 mt-12">
+        <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
+            <p>&copy; 2024 ELK Stack Ubuntu Jammy Build. Educational usage only.</p>
+        </div>
+    </footer>
+
+    <script src="../js/main.js"></script>
+</body>
+
+</html>

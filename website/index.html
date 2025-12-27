@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elastic-SecOps-Mastery | Next-Gen SOC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0F172A 0%, #005571 100%);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+
+    <!-- Nav -->
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-shield-halved text-blue-600 text-2xl"></i>
+                <span
+                    class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-cyan-600">Elastic-SecOps</span>
+            </div>
+            <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery" target="_blank"
+                class="hover:text-blue-600 transition">
+                <i class="fab fa-github text-xl"></i>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="hero-gradient text-white pt-24 pb-32 px-6">
+        <div class="container mx-auto text-center max-w-4xl">
+            <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
+                Modern SOC <span class="text-cyan-400">Mastery</span>
+            </h1>
+            <p class="text-xl text-slate-300 mb-10 leading-relaxed">
+                A production-ready framework combining <span class="text-white font-semibold">Hardened Elastic
+                    Stack</span> infrastructure
+                with <span class="text-white font-semibold">Generative AI</span> analysis.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="#get-started"
+                    class="px-8 py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold rounded-lg transition shadow-lg hover:shadow-cyan-500/25">
+                    Start Building
+                </a>
+                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/tree/main/docs"
+                    class="px-8 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg transition">
+                    Read Documentation
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features -->
+    <section class="py-20 px-6 -mt-20">
+        <div class="container mx-auto max-w-6xl">
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Card 1 -->
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+                    <div
+                        class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3">1. Build</h3>
+                    <p class="text-slate-600">Automated deployment scripts for Docker and Kubernetes (ECK).
+                        Production-ready configs included.</p>
+                </div>
+                <!-- Card 2 -->
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+                    <div
+                        class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3">2. Analyze</h3>
+                    <p class="text-slate-600">Python-based MCP Server integrated with LLMs to auto-enrich alerts and
+                        provide remediation context.</p>
+                </div>
+                <!-- Card 3 -->
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+                    <div
+                        class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-2xl mb-6">
+                        <i class="fas fa-crosshairs"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3">3. Learn</h3>
+                    <p class="text-slate-600">Access comprehensive guides on Threat Hunting, KQL queries, and Incident
+                        Response scenarios.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started -->
+    <section id="get-started" class="py-20 bg-slate-50 px-6">
+        <div class="container mx-auto max-w-4xl">
+            <h2 class="text-3xl font-bold text-center mb-12">Choose Your Path</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_docker.md"
+                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
+                    <div class="text-blue-400 mb-4"><i class="fab fa-docker text-4xl"></i></div>
+                    <h3 class="text-xl font-bold mb-2">Docker Setup</h3>
+                    <p class="text-gray-400">Quick start guide for deploying the full Elastic Stack using Docker
+                        Compose.</p>
+                </a>
+                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_kubernetes.md"
+                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
+                    <div class="text-purple-400 mb-4"><i class="fas fa-cubes text-4xl"></i></div>
+                    <h3 class="text-xl font-bold mb-2">Kubernetes (ECK)</h3>
+                    <p class="text-gray-400">Production-ready deployment using the Elastic Cloud on Kubernetes operator.
+                    </p>
+                </a>
+                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/setup_baremetal.md"
+                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
+                    <div class="text-green-400 mb-4"><i class="fas fa-server text-4xl"></i></div>
+                    <h3 class="text-xl font-bold mb-2">Bare Metal</h3>
+                    <p class="text-gray-400">Step-by-step guide for manual installation on Ubuntu/Debian systems.</p>
+                </a>
+                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/hunting.md"
+                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
+                    <div class="text-red-400 mb-4"><i class="fas fa-crosshairs text-4xl"></i></div>
+                    <h3 class="text-xl font-bold mb-2">Threat Hunting</h3>
+                    <p class="text-gray-400">Library of KQL queries and automated scenarios for detection.</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-12 text-center">
+        <p>&copy; 2024 Elastic-SecOps-Mastery. Open Source Education.</p>
+    </footer>
+
+</body>
+
+</html>
