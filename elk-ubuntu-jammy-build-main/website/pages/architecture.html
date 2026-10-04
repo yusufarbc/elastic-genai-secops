@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture & Internals - ELK Stack Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'elk-primary': '#005571',
+                        'elk-secondary': '#00BFB3',
+                        'elk-accent': '#F04E98',
+                        'elk-dark': '#1a1a1a',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <a href="../index.html" class="flex items-center space-x-3">
+                    <i class="fas fa-layer-group text-elk-primary text-3xl"></i>
+                    <span class="text-2xl font-bold text-elk-dark">ELK Stack Lab</span>
+                </a>
+                <div class="hidden md:flex space-x-8">
+                    <a href="../index.html" class="text-gray-700 hover:text-elk-primary transition">Home</a>
+                    <a href="installation.html" class="text-gray-700 hover:text-elk-primary transition">Installation</a>
+                    <a href="components.html" class="text-gray-700 hover:text-elk-primary transition">Components</a>
+                    <a href="troubleshooting.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Troubleshooting</a>
+                </div>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-elk-primary text-white px-6 py-2 rounded-lg hover:bg-elk-secondary transition">
+                    <i class="fab fa-github mr-2"></i>GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="bg-gray-900 text-white py-16">
+        <div class="container mx-auto px-6">
+            <h1 class="text-4xl font-bold mb-4">Architecture & Internals</h1>
+            <p class="text-xl opacity-90">Deep dive into the engine: Lucene, Protocols, and distributed design.</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- Tabs Navigation (Visual only for static site) -->
+        <div class="border-b mb-8 overflow-x-auto">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                <a href="#internals"
+                    class="border-elk-primary text-elk-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Elasticsearch
+                    Internals</a>
+                <a href="#ingestion"
+                    class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Ingestion</a>
+                <a href="#security"
+                    class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Security</a>
+                <a href="#history"
+                    class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">History</a>
+            </nav>
+        </div>
+
+        <!-- ES Internals -->
+        <section id="internals" class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-elk-dark">Elasticsearch Internals</h2>
+            <div class="grid lg:grid-cols-2 gap-10">
+                <div class="bg-white p-8 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold mb-4 text-elk-primary">The Inverted Index</h3>
+                    <p class="text-gray-600 mb-4">
+                        At the core is <strong>Lucene</strong>. Documents are immutable segments.
+                        This allows for lock-free reads and efficient kernel page caching.
+                    </p>
+                    <ul class="list-disc pl-5 text-gray-600 space-y-2">
+                        <li><strong>Frame of Reference (FOR):</strong> Delta-encoding for compression.</li>
+                        <li><strong>PForDelta:</strong> Handling outliers in posting lists.</li>
+                        <li><strong>Roaring Bitmaps:</strong> Efficient filter caching (Sparse vs Dense).</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-8 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold mb-4 text-elk-primary">Data Durability</h3>
+                    <p class="text-gray-600 mb-4">
+                        Real-time search without sacrificing durability is achieved via the <strong>Translog</strong>.
+                    </p>
+                    <div class="bg-gray-100 p-4 rounded text-sm">
+                        <ol class="list-decimal pl-4 space-y-1">
+                            <li>Write to In-Memory Buffer</li>
+                            <li>Append to Translog file</li>
+                            <li>Refresh (1s) -> New Segment (Searching)</li>
+                            <li>Fsync Translog -> Durable on disk</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ingestion -->
+        <section id="ingestion" class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-elk-dark">Ingestion Architecture</h2>
+            <div class="bg-white p-8 rounded-xl shadow-sm border-l-4 border-elk-secondary">
+                <h3 class="text-xl font-bold mb-4">Logstash Persistent Queues</h3>
+                <p class="text-gray-600 mb-4">
+                    Protects against data loss during crashes. Uses a sequence of fixed-size page files (Head/Tail
+                    pages)
+                    and strict checkpointing (ACKs).
+                </p>
+
+                <h3 class="text-xl font-bold mb-4 mt-8">Beats & Lumberjack Protocol</h3>
+                <p class="text-gray-600 mb-4">
+                    Beats use a binary protocol (Lumberjack V2) to communicate with Logstash.
+                </p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3">Component</th>
+                                <th class="px-6 py-3">Mechanism</th>
+                                <th class="px-6 py-3">Benefit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="bg-white border-b">
+                                <td class="px-6 py-4 font-medium text-gray-900">Beats Queue</td>
+                                <td class="px-6 py-4">Ring Buffer (Mutex-Guarded)</td>
+                                <td class="px-6 py-4">Low GC overhead vs Channels</td>
+                            </tr>
+                            <tr class="bg-white border-b">
+                                <td class="px-6 py-4 font-medium text-gray-900">Backpressure</td>
+                                <td class="px-6 py-4">Window Size & ACKs</td>
+                                <td class="px-6 py-4">Prevents memory overflow</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Security -->
+        <section id="security" class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-elk-dark">Security Transformation</h2>
+            <div class="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-8 rounded-xl shadow-lg">
+                <div class="flex flex-col md:flex-row items-center gap-8">
+                    <div class="md:w-1/3 text-center">
+                        <i class="fas fa-shield-virus text-6xl text-elk-accent mb-4"></i>
+                        <h3 class="text-2xl font-bold">XDR Platform</h3>
+                    </div>
+                    <div class="md:w-2/3">
+                        <p class="mb-4 text-lg">
+                            Evolution from passive SIEM to active XDR via the <strong>Endgame</strong> acquisition.
+                        </p>
+                        <ul class="space-y-3">
+                            <li class="flex items-center"><i class="fas fa-check text-elk-secondary mr-3"></i>
+                                <strong>Reflex Engine:</strong> Internal decision engine for autonomous response.</li>
+                            <li class="flex items-center"><i class="fas fa-check text-elk-secondary mr-3"></i>
+                                <strong>ECS:</strong> Uniform data schema for all sources.</li>
+                            <li class="flex items-center"><i class="fas fa-check text-elk-secondary mr-3"></i>
+                                <strong>EQL:</strong> Event Query Language for sequence correlation.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- History -->
+        <section id="history" class="mb-16">
+            <h2 class="text-3xl font-bold mb-6 text-elk-dark">History & Evolution</h2>
+            <div class="prose max-w-none text-gray-600">
+                <p>
+                    From Shay Banon's "Compass" in 2004 to the licensing schism in 2021. The Elastic Stack has evolved
+                    from a simple search library wrapper into a distributed data platform.
+                </p>
+                <div class="mt-4 grid md:grid-cols-4 gap-4 text-center">
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <span class="block text-2xl font-bold text-gray-300">2004</span>
+                        <span class="font-bold">Compass</span>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <span class="block text-2xl font-bold text-elk-secondary">2010</span>
+                        <span class="font-bold text-elk-dark">Elasticsearch</span>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <span class="block text-2xl font-bold text-gray-300">2012</span>
+                        <span class="font-bold">ELK Stack</span>
+                    </div>
+                    <div class="bg-white p-4 rounded shadow-sm">
+                        <span class="block text-2xl font-bold text-elk-accent">2021</span>
+                        <span class="font-bold text-elk-dark">Licensing Change</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-elk-dark text-white py-8">
+        <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
+            <p>&copy; 2024 ELK Stack Ubuntu Jammy Build.</p>
+        </div>
+    </footer>
+    <script src="../js/main.js"></script>
+</body>
+
+</html>

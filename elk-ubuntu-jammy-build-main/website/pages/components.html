@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Components - ELK Stack Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'elk-primary': '#005571',
+                        'elk-secondary': '#00BFB3',
+                        'elk-accent': '#F04E98',
+                        'elk-dark': '#1a1a1a',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <a href="../index.html" class="flex items-center space-x-3">
+                    <i class="fas fa-layer-group text-elk-primary text-3xl"></i>
+                    <span class="text-2xl font-bold text-elk-dark">ELK Stack Lab</span>
+                </a>
+                <div class="hidden md:flex space-x-8">
+                    <a href="../index.html" class="text-gray-700 hover:text-elk-primary transition">Home</a>
+                    <a href="installation.html" class="text-gray-700 hover:text-elk-primary transition">Installation</a>
+                    <a href="architecture.html" class="text-gray-700 hover:text-elk-primary transition">Architecture</a>
+                    <a href="troubleshooting.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Troubleshooting</a>
+                </div>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-elk-primary text-white px-6 py-2 rounded-lg hover:bg-elk-secondary transition">
+                    <i class="fab fa-github mr-2"></i>GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="bg-elk-secondary text-white py-16">
+        <div class="container mx-auto px-6">
+            <h1 class="text-4xl font-bold mb-4">Stack Components</h1>
+            <p class="text-xl opacity-90">Detailed reference for Elasticsearch, Logstash, and Kibana</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- Elasticsearch -->
+        <section id="elasticsearch" class="mb-16 bg-white rounded-xl shadow-lg border-t-8 border-elk-primary">
+            <div class="p-8">
+                <div class="flex items-center mb-6">
+                    <div class="bg-elk-primary text-white p-4 rounded-lg mr-4">
+                        <i class="fas fa-database text-2xl"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-elk-dark">Elasticsearch</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-bold mb-3 text-elk-primary">Configuration</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><strong>Port:</strong> <code class="bg-gray-100 px-2 py-1 rounded">9200</code>
+                                (Localhost Only)</li>
+                            <li><strong>Security:</strong> TLS Enabled, RBAC</li>
+                            <li><strong>Heap Size:</strong> 4GB (default)</li>
+                            <li><strong>Config Path:</strong> <code
+                                    class="bg-gray-100 px-2 py-1 rounded">/etc/elasticsearch/elasticsearch.yml</code>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold mb-3 text-elk-primary">Features</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><i class="fas fa-check text-green-500 mr-2"></i>Index Lifecycle Management (90 days)
+                            </li>
+                            <li><i class="fas fa-check text-green-500 mr-2"></i>Data Streams support</li>
+                            <li><i class="fas fa-check text-green-500 mr-2"></i>Self-signed Certificate Authority</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-gray-50 p-6 rounded-lg">
+                    <h4 class="font-bold mb-3">Useful Commands</h4>
+                    <pre class="bg-gray-900 text-white p-4 rounded overflow-x-auto text-sm"><code># Check Health
+curl -s --cacert /etc/elasticsearch/certs/ca.crt https://localhost:9200/_cluster/health?pretty
+
+# List Indices
+curl -s --cacert /etc/elasticsearch/certs/ca.crt -u elastic:PASSWORD https://localhost:9200/_cat/indices?v</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Logstash -->
+        <section id="logstash" class="mb-16 bg-white rounded-xl shadow-lg border-t-8 border-elk-secondary">
+            <div class="p-8">
+                <div class="flex items-center mb-6">
+                    <div class="bg-elk-secondary text-white p-4 rounded-lg mr-4">
+                        <i class="fas fa-filter text-2xl"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-elk-dark">Logstash</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-bold mb-3 text-elk-secondary">Pipeline Ports</h3>
+                        <div class="space-y-2">
+                            <div class="flex justify-between border-b py-1"><span>Beats</span> <span
+                                    class="font-mono">5044/tcp</span></div>
+                            <div class="flex justify-between border-b py-1"><span>WEF</span> <span
+                                    class="font-mono">5045/tcp</span></div>
+                            <div class="flex justify-between border-b py-1"><span>Syslog</span> <span
+                                    class="font-mono">5514, 5515</span></div>
+                            <div class="flex justify-between border-b py-1"><span>Kaspersky</span> <span
+                                    class="font-mono">5516</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold mb-3 text-elk-secondary">Processing</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><i class="fas fa-cogs mr-2"></i>ECS Normalization</li>
+                            <li><i class="fas fa-cogs mr-2"></i>GeoIP Enrichment</li>
+                            <li><i class="fas fa-cogs mr-2"></i>Date Parsing & Grok</li>
+                            <li><i class="fas fa-database mr-2"></i>Persistent Queues</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Kibana -->
+        <section id="kibana" class="mb-16 bg-white rounded-xl shadow-lg border-t-8 border-elk-accent">
+            <div class="p-8">
+                <div class="flex items-center mb-6">
+                    <div class="bg-elk-accent text-white p-4 rounded-lg mr-4">
+                        <i class="fas fa-chart-line text-2xl"></i>
+                    </div>
+                    <h2 class="text-3xl font-bold text-elk-dark">Kibana</h2>
+                </div>
+
+                <div class="text-gray-700 mb-6">
+                    Runs on <code class="bg-gray-100 px-2 py-1 rounded">0.0.0.0:5601</code> (HTTP). Connects to
+                    Elasticsearch via TLS.
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-gray-50 p-4 rounded">
+                        <h4 class="font-bold mb-2">Discover</h4>
+                        <p class="text-sm">Explore raw data, filter logs, and check details.</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <h4 class="font-bold mb-2">Dashboards</h4>
+                        <p class="text-sm">Visualize aggregated data with charts and maps.</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded">
+                        <h4 class="font-bold mb-2">Stack Mgmt</h4>
+                        <p class="text-sm">Manage users, index patterns, and rules.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-elk-dark text-white py-8">
+        <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
+            <p>&copy; 2024 ELK Stack Ubuntu Jammy Build.</p>
+        </div>
+    </footer>
+    <script src="../js/main.js"></script>
+</body>
+
+</html>
