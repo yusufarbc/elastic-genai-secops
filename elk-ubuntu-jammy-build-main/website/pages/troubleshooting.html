@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troubleshooting - ELK Stack Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'elk-primary': '#005571',
+                        'elk-secondary': '#00BFB3',
+                        'elk-accent': '#F04E98',
+                        'elk-dark': '#1a1a1a',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <a href="../index.html" class="flex items-center space-x-3">
+                    <i class="fas fa-layer-group text-elk-primary text-3xl"></i>
+                    <span class="text-2xl font-bold text-elk-dark">ELK Stack Lab</span>
+                </a>
+                <div class="hidden md:flex space-x-8">
+                    <a href="../index.html" class="text-gray-700 hover:text-elk-primary transition">Home</a>
+                    <a href="installation.html" class="text-gray-700 hover:text-elk-primary transition">Installation</a>
+                    <a href="components.html" class="text-gray-700 hover:text-elk-primary transition">Components</a>
+                    <a href="architecture.html" class="text-gray-700 hover:text-elk-primary transition">Architecture</a>
+                </div>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-elk-primary text-white px-6 py-2 rounded-lg hover:bg-elk-secondary transition">
+                    <i class="fab fa-github mr-2"></i>GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="bg-red-700 text-white py-16">
+        <div class="container mx-auto px-6">
+            <h1 class="text-4xl font-bold mb-4">Troubleshooting</h1>
+            <p class="text-xl opacity-90">Diagnose and resolve common installation and operational issues.</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+
+        <!-- Elastic -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Elasticsearch Issues</h2>
+            <div class="space-y-4">
+                <details class="bg-white rounded-lg shadow-sm p-6 group">
+                    <summary class="font-bold text-lg cursor-pointer flex justify-between items-center text-red-600">
+                        Service Won't Start
+                        <i class="fas fa-chevron-down text-gray-400 group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="mt-4 text-gray-700">
+                        <p class="mb-2">Common causes: Memory, vm.max_map_count, or Permissions.</p>
+                        <pre class="bg-gray-100 p-3 rounded text-sm"># Check memory
+free -h
+
+# Check logs
+sudo journalctl -u elasticsearch -n 50 --no-pager</pre>
+                    </div>
+                </details>
+
+                <details class="bg-white rounded-lg shadow-sm p-6 group">
+                    <summary class="font-bold text-lg cursor-pointer flex justify-between items-center text-red-600">
+                        Certificate Errors
+                        <i class="fas fa-chevron-down text-gray-400 group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="mt-4 text-gray-700">
+                        <p class="mb-2">Verify permissions on /etc/elasticsearch/certs</p>
+                        <pre class="bg-gray-100 p-3 rounded text-sm">ls -la /etc/elasticsearch/certs/
+sudo chown root:elasticsearch /etc/elasticsearch/certs/*</pre>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Kibana -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Kibana Issues</h2>
+            <div class="space-y-4">
+                <details class="bg-white rounded-lg shadow-sm p-6 group">
+                    <summary class="font-bold text-lg cursor-pointer flex justify-between items-center text-pink-600">
+                        Enrollment Token Expired
+                        <i class="fas fa-chevron-down text-gray-400 group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="mt-4 text-gray-700">
+                        <p class="mb-2">Tokens are valid for 30 minutes. Generate a new one:</p>
+                        <pre
+                            class="bg-gray-100 p-3 rounded text-sm">sudo /usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana</pre>
+                    </div>
+                </details>
+
+                <details class="bg-white rounded-lg shadow-sm p-6 group">
+                    <summary class="font-bold text-lg cursor-pointer flex justify-between items-center text-pink-600">
+                        Kibana Server Not Ready
+                        <i class="fas fa-chevron-down text-gray-400 group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="mt-4 text-gray-700">
+                        <p class="mb-2">Kibana cannot connect to Elasticsearch. Check elasticsearch.hosts in
+                            configuration.</p>
+                        <pre class="bg-gray-100 p-3 rounded text-sm">sudo journalctl -u kibana -n 50 --no-pager</pre>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Logstash -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-bold mb-6 text-elk-dark border-b pb-2">Logstash Issues</h2>
+            <div class="space-y-4">
+                <details class="bg-white rounded-lg shadow-sm p-6 group">
+                    <summary class="font-bold text-lg cursor-pointer flex justify-between items-center text-teal-600">
+                        Pipeline Won't Start
+                        <i class="fas fa-chevron-down text-gray-400 group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="mt-4 text-gray-700">
+                        <p class="mb-2">Validate your configuration syntax:</p>
+                        <pre
+                            class="bg-gray-100 p-3 rounded text-sm">sudo /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t</pre>
+                    </div>
+                </details>
+
+                <details class="bg-white rounded-lg shadow-sm p-6 group">
+                    <summary class="font-bold text-lg cursor-pointer flex justify-between items-center text-teal-600">
+                        Authentication Failure
+                        <i class="fas fa-chevron-down text-gray-400 group-open:rotate-180 transition"></i>
+                    </summary>
+                    <div class="mt-4 text-gray-700">
+                        <p class="mb-2">Check the keystore for ES_PW:</p>
+                        <pre
+                            class="bg-gray-100 p-3 rounded text-sm">sudo /usr/share/logstash/bin/logstash-keystore --path.settings /etc/logstash list</pre>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-elk-dark text-white py-8">
+        <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
+            <p>&copy; 2024 ELK Stack Ubuntu Jammy Build.</p>
+        </div>
+    </footer>
+    <script src="../js/main.js"></script>
+</body>
+
+</html>

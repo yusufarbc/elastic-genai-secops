@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="ELK Stack Ubuntu Jammy Build - Learn and practice ELK Stack deployment on Ubuntu 22.04">
+    <meta name="keywords" content="ELK Stack, Elasticsearch, Logstash, Kibana, Ubuntu, SIEM, Log Management">
+    <title>ELK Stack Ubuntu Jammy Build - Educational Lab Environment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'elk-primary': '#005571',
+                        'elk-secondary': '#00BFB3',
+                        'elk-accent': '#F04E98',
+                        'elk-dark': '#1a1a1a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #005571 0%, #00BFB3 100%);
+        }
+
+        .hover-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-layer-group text-elk-primary text-3xl"></i>
+                    <span class="text-2xl font-bold text-elk-dark">ELK Stack Lab</span>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="index.html" class="text-gray-700 hover:text-elk-primary transition">Home</a>
+                    <a href="#about" class="text-gray-700 hover:text-elk-primary transition">About</a>
+                    <a href="pages/components.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Components</a>
+                    <a href="pages/installation.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Installation</a>
+                    <a href="pages/architecture.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Architecture</a>
+                    <a href="pages/troubleshooting.html"
+                        class="text-gray-700 hover:text-elk-primary transition">Troubleshooting</a>
+                </div>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-elk-primary text-white px-6 py-2 rounded-lg hover:bg-elk-secondary transition">
+                    <i class="fab fa-github mr-2"></i>GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="gradient-bg text-white py-20 animate-fade-in">
+        <div class="container mx-auto px-6 text-center">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6">ELK Stack Ubuntu Jammy Build</h1>
+            <p class="text-xl md:text-2xl mb-8 text-gray-100">
+                Production-ready, single-host ELK Stack for Ubuntu 22.04
+            </p>
+            <p class="text-lg mb-10 max-w-3xl mx-auto text-gray-200">
+                Learn and practice ELK Stack deployment with this comprehensive laboratory environment.
+                Includes automated installation, detailed documentation, and hands-on tutorials.
+            </p>
+            <div class="flex flex-col md:flex-row justify-center gap-4">
+                <a href="#installation"
+                    class="bg-white text-elk-primary px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition text-lg">
+                    <i class="fas fa-rocket mr-2"></i>Get Started
+                </a>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-elk-primary transition text-lg">
+                    <i class="fab fa-github mr-2"></i>View on GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-center mb-16 text-elk-dark">Key Features</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-gray-50 p-8 rounded-xl hover-lift">
+                    <div class="text-elk-primary text-4xl mb-4">
+                        <i class="fas fa-terminal"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4 text-elk-dark">One-Command Install</h3>
+                    <p class="text-gray-600">
+                        Automated installation script handles everything: packages, certificates, configuration, and
+                        service setup.
+                    </p>
+                </div>
+                <div class="bg-gray-50 p-8 rounded-xl hover-lift">
+                    <div class="text-elk-secondary text-4xl mb-4">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4 text-elk-dark">Secure by Default</h3>
+                    <p class="text-gray-600">
+                        TLS encryption, certificate generation, role-based access control, and secure keystore
+                        management built-in.
+                    </p>
+                </div>
+                <div class="bg-gray-50 p-8 rounded-xl hover-lift">
+                    <div class="text-elk-accent text-4xl mb-4">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4 text-elk-dark">Multi-Source Ingestion</h3>
+                    <p class="text-gray-600">
+                        Pre-configured pipelines for Windows WEF, Syslog, Beats, and Kaspersky logs with ECS
+                        normalization.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-gray-100">
+        <div class="container mx-auto px-6">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-4xl font-bold mb-8 text-elk-dark text-center">About This Project</h2>
+                <div class="bg-white p-10 rounded-xl shadow-lg">
+                    <p class="text-lg text-gray-700 mb-6">
+                        This repository provides a <strong>laboratory environment</strong> for learning and practicing
+                        ELK Stack deployment
+                        on Ubuntu 22.04 (Jammy Jellyfish). It is designed for educational purposes and testing, not for
+                        production use.
+                    </p>
+                    <p class="text-lg text-gray-700 mb-6">
+                        The project includes:
+                    </p>
+                    <ul class="space-y-3 text-gray-700 mb-6">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-elk-secondary mt-1 mr-3"></i>
+                            <span>Automated installation script for single-host deployment</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-elk-secondary mt-1 mr-3"></i>
+                            <span>Comprehensive documentation for each component</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-elk-secondary mt-1 mr-3"></i>
+                            <span>Pre-configured log ingestion pipelines</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-elk-secondary mt-1 mr-3"></i>
+                            <span>Client configuration templates for Windows and network devices</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-elk-secondary mt-1 mr-3"></i>
+                            <span>Troubleshooting guides and best practices</span>
+                        </li>
+                    </ul>
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <p class="text-yellow-800">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Note:</strong> This is a laboratory setup for learning purposes.
+                            For production deployments, additional security hardening and high-availability
+                            configurations are recommended.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Components Section -->
+    <section id="components" class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-center mb-16 text-elk-dark">ELK Stack Components</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Elasticsearch -->
+                <div class="bg-gradient-to-br from-elk-primary to-blue-700 text-white p-8 rounded-xl hover-lift">
+                    <div class="text-5xl mb-4">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h3 class="text-3xl font-bold mb-4">Elasticsearch</h3>
+                    <p class="mb-6 text-gray-100">
+                        Distributed search and analytics engine. Stores and indexes all your log data.
+                    </p>
+                    <ul class="space-y-2 mb-6 text-sm">
+                        <li><i class="fas fa-check mr-2"></i>localhost:9200 (TLS)</li>
+                        <li><i class="fas fa-check mr-2"></i>Self-signed certificates</li>
+                        <li><i class="fas fa-check mr-2"></i>90-day ILM policy</li>
+                        <li><i class="fas fa-check mr-2"></i>Data streams</li>
+                    </ul>
+                    <a href="pages/components.html#elasticsearch"
+                        class="inline-block bg-white text-elk-primary px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Logstash -->
+                <div class="bg-gradient-to-br from-elk-secondary to-teal-600 text-white p-8 rounded-xl hover-lift">
+                    <div class="text-5xl mb-4">
+                        <i class="fas fa-filter"></i>
+                    </div>
+                    <h3 class="text-3xl font-bold mb-4">Logstash</h3>
+                    <p class="mb-6 text-gray-100">
+                        Data processing pipeline that ingests, transforms, and forwards logs to Elasticsearch.
+                    </p>
+                    <ul class="space-y-2 mb-6 text-sm">
+                        <li><i class="fas fa-check mr-2"></i>Beats: 5044/tcp</li>
+                        <li><i class="fas fa-check mr-2"></i>WEF: 5045/tcp</li>
+                        <li><i class="fas fa-check mr-2"></i>Syslog: 5514/tcp+udp</li>
+                        <li><i class="fas fa-check mr-2"></i>ECS normalization</li>
+                    </ul>
+                    <a href="pages/components.html#logstash"
+                        class="inline-block bg-white text-elk-secondary px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+
+                <!-- Kibana -->
+                <div class="bg-gradient-to-br from-elk-accent to-pink-600 text-white p-8 rounded-xl hover-lift">
+                    <div class="text-5xl mb-4">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="text-3xl font-bold mb-4">Kibana</h3>
+                    <p class="mb-6 text-gray-100">
+                        Visualization and management interface for exploring and analyzing your data.
+                    </p>
+                    <ul class="space-y-2 mb-6 text-sm">
+                        <li><i class="fas fa-check mr-2"></i>0.0.0.0:5601 (HTTP)</li>
+                        <li><i class="fas fa-check mr-2"></i>Dashboards & visualizations</li>
+                        <li><i class="fas fa-check mr-2"></i>Index management</li>
+                        <li><i class="fas fa-check mr-2"></i>Alerting & monitoring</li>
+                    </ul>
+                    <a href="pages/components.html#kibana"
+                        class="inline-block bg-white text-elk-accent px-6 py-2 rounded-lg font-semibold hover:bg-gray-100 transition">
+                        Learn More <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section id="installation" class="py-20 bg-gray-100">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-center mb-16 text-elk-dark">Quick Installation</h2>
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-10 rounded-xl shadow-lg mb-8">
+                    <h3 class="text-2xl font-bold mb-6 text-elk-dark">Prerequisites</h3>
+                    <ul class="space-y-3 text-gray-700 mb-8">
+                        <li class="flex items-start">
+                            <i class="fas fa-server text-elk-primary mt-1 mr-3"></i>
+                            <span><strong>OS:</strong> Ubuntu 22.04 LTS (Jammy Jellyfish)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-user-shield text-elk-primary mt-1 mr-3"></i>
+                            <span><strong>Privileges:</strong> root or sudo access</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-network-wired text-elk-primary mt-1 mr-3"></i>
+                            <span><strong>Network:</strong> Internet access for package downloads</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-microchip text-elk-primary mt-1 mr-3"></i>
+                            <span><strong>Resources:</strong> 8 vCPU / 32 GB RAM / 1 TB SSD (recommended)</span>
+                        </li>
+                    </ul>
+
+                    <h3 class="text-2xl font-bold mb-6 text-elk-dark">Installation Steps</h3>
+                    <div class="bg-gray-900 text-gray-100 p-6 rounded-lg font-mono text-sm mb-6 overflow-x-auto">
+                        <div class="mb-2"><span class="text-green-400">$</span> git clone
+                            https://github.com/yusufarbc/elk-ubuntu-jammy-build.git</div>
+                        <div class="mb-2"><span class="text-green-400">$</span> cd elk-ubuntu-jammy-build</div>
+                        <div class="mb-2"><span class="text-green-400">$</span> chmod +x
+                            scripts/install/elk_setup_ubuntu_jammy.sh</div>
+                        <div><span class="text-green-400">$</span> sudo ./scripts/install/elk_setup_ubuntu_jammy.sh
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded mb-6">
+                        <p class="text-blue-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            The script will output Kibana URL, elastic password, and enrollment token upon completion.
+                        </p>
+                    </div>
+
+                    <a href="pages/installation.html"
+                        class="inline-block bg-elk-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-elk-secondary transition">
+                        View Full Installation Guide <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section class="py-20 bg-white">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-center mb-16 text-elk-dark">Architecture Overview</h2>
+            <div class="max-w-5xl mx-auto bg-gray-50 p-10 rounded-xl shadow-lg">
+                <div class="bg-gray-900 text-gray-100 p-6 rounded-lg font-mono text-sm overflow-x-auto">
+                    <pre class="text-xs md:text-sm">
+┌─────────────────┐
+│ Windows Clients │──WEF/GPO──┐
+└─────────────────┘            │
+                               ▼
+┌─────────────────┐      ┌──────────┐      ┌────────────────┐
+│   WEC Server    │──5045├─────────►│                        │
+└─────────────────┘      │          │                        │
+                         │          │    Elasticsearch       │
+┌─────────────────┐      │ Logstash │    (localhost:9200)    │
+│ Linux / Network │──5514├─────────►│         TLS            │
+│    Devices      │      │          │                        │
+└─────────────────┘      │          │                        │
+                         │          │                        │
+┌─────────────────┐      │          │                        │
+│   Kaspersky     │──5516├─────────►│                        │
+└─────────────────┘      └──────────┘      └────────┬───────┘
+                                                     │
+                                                     │
+                                            ┌────────▼───────┐
+                                            │     Kibana     │
+                                            │  0.0.0.0:5601  │
+                                            │      HTTP      │
+                                            └────────────────┘
+                                                     ▲
+                                                     │
+                                            ┌────────┴───────┐
+                                            │      User      │
+                                            │    Browser     │
+                                            └────────────────┘
+</pre>
+                </div>
+                <div class="mt-6 grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-3 text-elk-dark">Data Flow</h4>
+                        <ul class="space-y-2 text-gray-700 text-sm">
+                            <li><i class="fas fa-arrow-right text-elk-primary mr-2"></i>Logs → Logstash (parsing)</li>
+                            <li><i class="fas fa-arrow-right text-elk-primary mr-2"></i>Logstash → Elasticsearch
+                                (storage)</li>
+                            <li><i class="fas fa-arrow-right text-elk-primary mr-2"></i>Kibana → Elasticsearch (queries)
+                            </li>
+                            <li><i class="fas fa-arrow-right text-elk-primary mr-2"></i>User → Kibana (visualization)
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-3 text-elk-dark">Network Ports</h4>
+                        <ul class="space-y-2 text-gray-700 text-sm">
+                            <li><i class="fas fa-network-wired text-elk-secondary mr-2"></i>5044: Beats input</li>
+                            <li><i class="fas fa-network-wired text-elk-secondary mr-2"></i>5045: WEF/Winlogbeat</li>
+                            <li><i class="fas fa-network-wired text-elk-secondary mr-2"></i>5514: Syslog (TCP/UDP)</li>
+                            <li><i class="fas fa-network-wired text-elk-secondary mr-2"></i>5601: Kibana web UI</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Resources Section -->
+    <section id="resources" class="py-20 bg-gray-100">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold text-center mb-16 text-elk-dark">Documentation & Resources</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                <a href="pages/installation.html" class="bg-white p-6 rounded-xl shadow-lg hover-lift block">
+                    <div class="text-elk-primary text-3xl mb-4"><i class="fas fa-book"></i></div>
+                    <h3 class="text-xl font-bold mb-3 text-elk-dark">Installation Guide</h3>
+                    <p class="text-gray-600">Step-by-step installation instructions and post-setup verification.</p>
+                </a>
+                <a href="pages/components.html" class="bg-white p-6 rounded-xl shadow-lg hover-lift block">
+                    <div class="text-elk-secondary text-3xl mb-4"><i class="fas fa-cubes"></i></div>
+                    <h3 class="text-xl font-bold mb-3 text-elk-dark">Component Docs</h3>
+                    <p class="text-gray-600">Detailed documentation for Elasticsearch, Logstash, and Kibana.</p>
+                </a>
+                <a href="pages/tutorials.html" class="bg-white p-6 rounded-xl shadow-lg hover-lift block">
+                    <div class="text-elk-accent text-3xl mb-4"><i class="fas fa-graduation-cap"></i></div>
+                    <h3 class="text-xl font-bold mb-3 text-elk-dark">Tutorials</h3>
+                    <p class="text-gray-600">Hands-on tutorials and practice scenarios for learning ELK Stack.</p>
+                </a>
+                <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                    class="bg-white p-6 rounded-xl shadow-lg hover-lift block">
+                    <div class="text-gray-700 text-3xl mb-4"><i class="fab fa-github"></i></div>
+                    <h3 class="text-xl font-bold mb-3 text-elk-dark">GitHub Repository</h3>
+                    <p class="text-gray-600">Access source code, configuration files, and client templates.</p>
+                </a>
+                <a href="https://www.elastic.co/guide/index.html" target="_blank"
+                    class="bg-white p-6 rounded-xl shadow-lg hover-lift block">
+                    <div class="text-blue-600 text-3xl mb-4"><i class="fas fa-external-link-alt"></i></div>
+                    <h3 class="text-xl font-bold mb-3 text-elk-dark">Official Elastic Docs</h3>
+                    <p class="text-gray-600">Comprehensive official documentation from Elastic.</p>
+                </a>
+                <a href="https://discuss.elastic.co/" target="_blank"
+                    class="bg-white p-6 rounded-xl shadow-lg hover-lift block">
+                    <div class="text-orange-600 text-3xl mb-4"><i class="fas fa-comments"></i></div>
+                    <h3 class="text-xl font-bold mb-3 text-elk-dark">Community Forum</h3>
+                    <p class="text-gray-600">Get help and share knowledge with the Elastic community.</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-elk-dark text-white py-12">
+        <div class="container mx-auto px-6">
+            <div class="grid md:grid-cols-3 gap-8 mb-8">
+                <div>
+                    <h4 class="text-xl font-bold mb-4">ELK Stack Lab</h4>
+                    <p class="text-gray-400">
+                        Educational laboratory environment for learning ELK Stack deployment on Ubuntu 22.04.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#home" class="text-gray-400 hover:text-elk-secondary transition">Home</a></li>
+                        <li><a href="#components"
+                                class="text-gray-400 hover:text-elk-secondary transition">Components</a></li>
+                        <li><a href="#installation"
+                                class="text-gray-400 hover:text-elk-secondary transition">Installation</a></li>
+                        <li><a href="pages/tutorials.html"
+                                class="text-gray-400 hover:text-elk-secondary transition">Tutorials</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold mb-4">Connect</h4>
+                    <div class="flex space-x-4">
+                        <a href="https://github.com/yusufarbc/elk-ubuntu-jammy-build" target="_blank"
+                            class="text-gray-400 hover:text-white transition text-2xl">
+                            <i class="fab fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 ELK Stack Ubuntu Jammy Build. Educational project for laboratory use.</p>
+                <p class="mt-2 text-sm">Not affiliated with Elastic N.V. ELK and Elastic are trademarks of Elasticsearch
+                    B.V.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+
+</html>
