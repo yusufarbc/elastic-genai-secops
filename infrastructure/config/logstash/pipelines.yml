@@ -1,8 +1,0 @@
-- pipeline.id: paloalto-pipeline
-  path.config: "/etc/logstash/conf.d/paloalto_syslog.conf"
-
-- pipeline.id: winlogbeat-pipeline
-  path.config: "/etc/logstash/conf.d/winlogbeat.conf"
-
-- pipeline.id: metric-heartbeat-pipeline
-  path.config: "/etc/logstash/conf.d/metric_heartbeat.conf"

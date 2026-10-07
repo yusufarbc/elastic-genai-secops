@@ -1,0 +1,43 @@
+# GCS snapshot repository registration (ADR-010).
+# Run once after cluster is up:
+#   PUT _snapshot/esm-gcs
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esm-gcs-snapshot-repo
+  namespace: esm
+data:
+  register.sh: |
+    #!/bin/bash
+    # Requires: GCS bucket esm-es-snapshots, Workload Identity with Storage Object Admin
+    curl -X PUT "https://${ES_HOST}/_snapshot/esm-gcs" \
+      -H "Content-Type: application/json" \
+      -u "${ES_USER}:${ES_PASSWORD}" \
+      --cacert /certs/ca.crt \
+      -d '{
+        "type": "gcs",
+        "settings": {
+          "bucket": "${GCS_BUCKET}",
+          "client": "default",
+          "base_path": "snapshots/"
+        }
+      }'
+---
+# SLM (Snapshot Lifecycle Management) policy — runs nightly at 01:00 UTC
+# Apply via Kibana Dev Tools:
+#   PUT _slm/policy/esm-gcs-snapshot-policy
+  slm-policy.json: |
+    {
+      "schedule": "0 0 1 * * ?",
+      "name": "<esm-snap-{now/d}>",
+      "repository": "esm-gcs",
+      "config": {
+        "indices": ["logs-*", ".alerts-security.alerts-*", "esm-cases-*"],
+        "include_global_state": false
+      },
+      "retention": {
+        "expire_after": "2y",
+        "min_count": 1,
+        "max_count": 730
+      }
+    }
