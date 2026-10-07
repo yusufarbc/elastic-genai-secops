@@ -1,0 +1,24 @@
+{
+  "policy": {
+    "_meta": {
+      "description": "Elastic-SecOps-Mastery default lifecycle for logs-* and metrics-* data streams",
+      "managed_by": "content/bootstrap.sh"
+    },
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {
+            "max_age": "__ROLLOVER_MAX_AGE__",
+            "max_primary_shard_size": "50gb"
+          }
+        }
+      },
+      "delete": {
+        "min_age": "__RETENTION_DAYS__d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
