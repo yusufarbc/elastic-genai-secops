@@ -1,20 +1,62 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*credentials*.json
+service-account*.json
+
+# Agent installers and binaries: download them with
+# deploy/endpoints/windows scripts, never commit them
+*.msi
+*.exe
+
+# Go
+services/*/bin/
+services/*/vendor/
+*.test
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.venv/
 venv/
-.env
+dist/
+build/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
 
-# Elastic / MCP
+# Container / Compose
+docker-compose.override.yml
+compose.override.yml
+
+# Docs build output
+site/
+
+# Logs
 logs/
 *.log
 
 # IDE
-.vscode/
 .idea/
+.vscode/
 *.swp
 *.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Elastic local data volumes
+esdata/
+kibanadata/
+
+# Terraform / IaC
+*.tfstate
+*.tfstate.backup
+.terraform/
