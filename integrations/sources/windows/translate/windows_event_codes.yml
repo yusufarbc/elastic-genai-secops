@@ -1,0 +1,67 @@
+# Windows event ID -> event.action, used by integrations/sources/windows/logstash.conf
+# Only applied when Winlogbeat did not already set event.action.
+# Keys are strings because event.code is a keyword.
+
+# Logon / authentication
+"4624": "logged-in"
+"4625": "logon-failed"
+"4634": "logged-out"
+"4647": "user-initiated-logout"
+"4648": "logged-in-explicit"
+"4672": "logged-in-special"
+"4768": "kerberos-authentication-ticket-requested"
+"4769": "kerberos-service-ticket-requested"
+"4771": "kerberos-preauth-failed"
+"4776": "credential-validated"
+"4778": "session-reconnected"
+"4779": "session-disconnected"
+
+# Account management
+"4720": "added-user-account"
+"4722": "enabled-user-account"
+"4723": "changed-password"
+"4724": "reset-password"
+"4725": "disabled-user-account"
+"4726": "deleted-user-account"
+"4738": "modified-user-account"
+"4740": "locked-out-user-account"
+"4767": "unlocked-user-account"
+"4728": "added-member-to-group"
+"4729": "removed-member-from-group"
+"4732": "added-member-to-group"
+"4733": "removed-member-from-group"
+"4756": "added-member-to-group"
+"4757": "removed-member-from-group"
+
+# Process, service, task, object access
+"4688": "created-process"
+"4689": "exited-process"
+"4697": "service-installed"
+"4698": "scheduled-task-created"
+"4699": "scheduled-task-deleted"
+"4700": "scheduled-task-enabled"
+"4701": "scheduled-task-disabled"
+"4702": "scheduled-task-updated"
+"4663": "object-access-attempt"
+"5140": "network-share-object-accessed"
+"5145": "network-share-object-access-checked"
+"7045": "service-installed"
+
+# Policy and audit tampering
+"1102": "audit-log-cleared"
+"104": "event-log-cleared"
+"4719": "changed-audit-config"
+"4739": "domain-policy-changed"
+"4946": "firewall-rule-added"
+"4947": "firewall-rule-modified"
+"4948": "firewall-rule-deleted"
+
+# PowerShell
+"4103": "powershell-module-logging"
+"4104": "powershell-script-block-logging"
+
+# Windows Defender (Microsoft-Windows-Windows Defender/Operational)
+"1116": "malware-detected"
+"1117": "malware-action-taken"
+"5001": "realtime-protection-disabled"
+"5007": "configuration-changed"
