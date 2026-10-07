@@ -1,71 +1,88 @@
 [← Back to README](../../README.md)
 
-# Ubuntu 22.04 Single-Server Agentless SIEM Installation and Operations Guide
+# Bare-metal install (Ubuntu 22.04)
 
-## Introduction
+Installs the `siem` profile on one host: Elasticsearch, Kibana and Logstash with every source
+pipeline, the ILM policy, templates, roles and detection rules.
 
-This guide explains the installation and operation of an agentless Elastic SIEM stack (no Elastic Agent/Fleet) running on a single Ubuntu 22.04 server. Elasticsearch listens only on localhost with TLS; Kibana and Logstash are LAN-accessible. The goal is to provide a secure, idempotent installation with a single command.
+| Component | Listens on |
+| --- | --- |
+| Elasticsearch | `https://127.0.0.1:9200` (TLS, security on, localhost only) |
+| Kibana | `http://<host>:5601` |
+| Logstash | source ports, see [integrations/sources](../../integrations/sources/README.md) |
 
-## Components and Architecture
+## Requirements
 
-- **Elasticsearch** (localhost:9200, TLS)
-- **Kibana** (0.0.0.0:5601, HTTP)
-- **Logstash** (Beats 5044/tcp, WEF 5045/tcp, Syslog 5514/udp+tcp, 5515/tcp, Kaspersky 5516/udp+tcp)
+- Ubuntu 22.04, 4 vCPU, 8 GB RAM minimum (16 GB recommended), disk sized for your retention
+- Outbound HTTPS to `artifacts.elastic.co`
+- Root access
 
-```
-[Clients] -> [Logstash] -> [Elasticsearch]
-User <-> Kibana <-> Elasticsearch
-```
-
-## Installation
+## Install
 
 ```bash
 git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
 cd Elastic-SecOps-Mastery
-chmod +x deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 ```
 
-The script output displays: Elastic password, Kibana enrollment token, and Logstash keystore information (ES_PW).
+Optional settings, passed as environment variables:
 
-## Verification
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ELASTIC_VERSION` | `8.13.4` | Version installed and held with `apt-mark hold` |
+| `RETENTION_DAYS` | `90` | Logs and metrics are deleted after this many days |
+| `KIBANA_BIND` | `0.0.0.0` | Interface Kibana listens on |
+| `ES_NAMESPACE` | `default` | Data stream namespace (`logs-<dataset>-<namespace>`) |
+
+Example: `sudo RETENTION_DAYS=30 ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh`
+
+The script is safe to re-run; certificates, keys and passwords are kept.
+
+## What it does
+
+1. Adds the Elastic APT repository and installs the pinned version of the three packages.
+2. Creates a CA and PEM certificates for Elasticsearch (HTTP and transport) in `/etc/elasticsearch/certs`.
+3. Installs `config/elasticsearch.yml` and `config/kibana.yml`, copies `integrations/sources` to
+   `/etc/logstash/conf.d` and installs its `pipelines.yml`.
+4. Starts Elasticsearch, sets the `elastic` and `kibana_system` passwords.
+5. Runs [`content/bootstrap.sh`](../../content/bootstrap.sh): ILM policy `esm-logs`, the `logs@custom` and
+   `metrics@custom` component templates, the `logstash_writer` role and the `logstash_ingest` user.
+6. Stores the Kibana and Logstash secrets in their keystores and starts both services.
+7. Imports the detection rules into Kibana.
+
+## Credentials
+
+Passwords are written to `/root/esm-credentials` (mode 0600) and are not printed:
 
 ```bash
-systemctl status elasticsearch kibana logstash --no-pager
-curl -s --cacert /etc/elasticsearch/certs/ca.crt https://localhost:9200 | jq .
-sudo /usr/share/logstash/bin/logstash --path.settings /etc/logstash -t
+sudo cat /root/esm-credentials
 ```
 
-## Log Sources
+Log in to Kibana as `elastic` with `ELASTIC_PASSWORD`.
 
-- **Windows WEF**: Winlogbeat (WEC) → Logstash 5045/tcp
-- **Syslog**: 5514/udp(+tcp), RFC5424: 5515/tcp
-- **Kaspersky**: 5516/udp,tcp (JSON supported)
+## Firewall
 
-## Data Streams and ILM
-
-- **Data stream**: `logs-<dataset>-default`
-- **ILM**: `logs-90d` (90-day retention)
-
-## Troubleshooting
-
-- **Kibana won't connect**: Check ES health, verify Kibana `elasticsearch.hosts` configuration
-- **Enrollment token generation**: Run `elasticsearch-create-enrollment-token -s kibana`
-- **Logstash not writing**: Check `journalctl -u logstash -f`, verify `ES_PW` in keystore
-
-## Cleanup
+Open only the ports of the sources you use:
 
 ```bash
-sudo systemctl stop logstash kibana elasticsearch || true
-sudo rm -rf /etc/elasticsearch /etc/kibana /etc/logstash
-sudo rm -rf /etc/systemd/system/elasticsearch.service.d
-sudo rm -rf /var/log/elasticsearch /var/log/logstash
-sudo rm -rf /var/lib/elasticsearch /var/lib/logstash
-sudo rm -f /etc/default/logstash /etc/sysconfig/logstash
-sudo systemctl daemon-reload
+sudo ufw allow 5601/tcp                     # Kibana
+sudo ufw allow 5044:5048/tcp                # Beats inputs
+sudo ufw allow 5514:5517/tcp
+sudo ufw allow 5514:5517/udp                # syslog, FortiGate, Palo Alto
 ```
 
-## Notes
+## Next steps
 
-- Kibana remains HTTP on LAN; reverse proxy/SSL not required for lab environments
-- This guide is maintained in English for international accessibility
+- Connect log sources: [integrations/sources](../../integrations/sources/README.md)
+- Roll out Winlogbeat and Sysmon to Windows endpoints: `deploy/endpoints/windows/`
+- Troubleshooting: [operations/troubleshooting.md](../operations/troubleshooting.md)
+
+## Checks
+
+```bash
+systemctl status elasticsearch kibana logstash
+sudo journalctl -u logstash -f
+source <(sudo cat /root/esm-credentials)
+curl -s --cacert /etc/elasticsearch/certs/ca.crt -u "elastic:${ELASTIC_PASSWORD}" \
+  "https://localhost:9200/_data_stream?pretty" | grep '"name"'
+```

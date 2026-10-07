@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "description": "Elastic-SecOps-Mastery overrides for the built-in logs index template",
+    "managed_by": "content/bootstrap.sh"
+  },
+  "template": {
+    "settings": {
+      "index.lifecycle.name": "esm-logs"
+    }
+  }
+}

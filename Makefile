@@ -1,13 +1,32 @@
-.PHONY: up down build test lint clean logs
+.PHONY: up down build test lint clean logs siem-up siem-down siem-logs rules
 
 GO_SERVICES   := detection-service alert-gateway case-service bff
 PY_SERVICES   := enrichment-service masking-service llm-orchestrator
 
 COMPOSE       := docker compose -f deploy/compose/docker-compose.yml
+SIEM          := docker compose --project-directory deploy/compose -f deploy/compose/siem.yml
 K8S_BASE      := deploy/kubernetes/base
 
 # ---------------------------------------------------------------------------
-# Local dev
+# Profile "siem": Elasticsearch + Kibana + Logstash + detection rules
+# ---------------------------------------------------------------------------
+
+siem-up:
+	sh deploy/compose/init-env.sh
+	$(SIEM) up -d
+	@echo "Kibana: http://localhost:5601 (user elastic, password in deploy/compose/.env)"
+
+siem-down:
+	$(SIEM) down
+
+siem-logs:
+	$(SIEM) logs -f --tail=50
+
+rules:
+	python content/detection-rules/build.py
+
+# ---------------------------------------------------------------------------
+# Platform development stack (service builds are fixed in phase 4)
 # ---------------------------------------------------------------------------
 
 up:
