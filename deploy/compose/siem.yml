@@ -154,7 +154,6 @@ services:
       - "5045:5045"            # windows (Winlogbeat, WEF)
       - "5046:5046"            # beats-health (Metricbeat, Heartbeat)
       - "5047:5047"            # kaspersky
-      - "5048:5048"            # libraesva
       - "5514:5514/udp"        # syslog RFC3164
       - "5514:5514/tcp"
       - "5515:5515/tcp"        # syslog RFC5424

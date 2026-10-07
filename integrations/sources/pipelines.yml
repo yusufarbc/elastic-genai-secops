@@ -23,8 +23,5 @@
 - pipeline.id: kaspersky
   path.config: "/etc/logstash/conf.d/kaspersky/logstash.conf"
 
-- pipeline.id: libraesva
-  path.config: "/etc/logstash/conf.d/libraesva/logstash.conf"
-
 - pipeline.id: beats-health
   path.config: "/etc/logstash/conf.d/beats-health/logstash.conf"
