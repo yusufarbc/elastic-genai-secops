@@ -14,6 +14,8 @@
 #   RETENTION_DAYS   delete logs/metrics after N days             (default 90)
 #   KIBANA_BIND      interface Kibana listens on                  (default 0.0.0.0)
 #   ES_NAMESPACE     data stream namespace                        (default default)
+#   FORTIGATE_TZ     time zone of FortiGate clocks, e.g. Europe/Istanbul   (default UTC)
+#   PANOS_TZ         time zone of PAN-OS clocks                   (default UTC)
 #
 # Safe to re-run: existing certificates, keys and passwords are kept.
 set -Eeuo pipefail
@@ -22,6 +24,8 @@ ELASTIC_VERSION="${ELASTIC_VERSION:-8.13.4}"
 RETENTION_DAYS="${RETENTION_DAYS:-90}"
 KIBANA_BIND="${KIBANA_BIND:-0.0.0.0}"
 ES_NAMESPACE="${ES_NAMESPACE:-default}"
+FORTIGATE_TZ="${FORTIGATE_TZ:-UTC}"
+PANOS_TZ="${PANOS_TZ:-UTC}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
@@ -189,13 +193,15 @@ chown -R root:logstash /etc/logstash/conf.d
 LS_ENV=/etc/default/logstash
 touch "${LS_ENV}"; chmod 0600 "${LS_ENV}"
 grep -q '^LOGSTASH_KEYSTORE_PASS=' "${LS_ENV}" || echo "LOGSTASH_KEYSTORE_PASS=$(random_secret)" >> "${LS_ENV}"
-sed -i -E '/^(ES_HOSTS|ES_USER|ES_CA_CERT|ES_NAMESPACE|LS_SOURCES_DIR)=/d' "${LS_ENV}"
+sed -i -E '/^(ES_HOSTS|ES_USER|ES_CA_CERT|ES_NAMESPACE|LS_SOURCES_DIR|FORTIGATE_TZ|PANOS_TZ)=/d' "${LS_ENV}"
 cat >> "${LS_ENV}" <<EOF
 ES_HOSTS=${ES_URL}
 ES_USER=logstash_ingest
 ES_CA_CERT=/etc/logstash/certs/ca.crt
 ES_NAMESPACE=${ES_NAMESPACE}
 LS_SOURCES_DIR=/etc/logstash/conf.d
+FORTIGATE_TZ=${FORTIGATE_TZ}
+PANOS_TZ=${PANOS_TZ}
 EOF
 systemctl daemon-reload
 

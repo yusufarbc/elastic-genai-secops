@@ -143,6 +143,8 @@ services:
       - ES_CA_CERT=/usr/share/logstash/certs/ca/ca.crt
       - ES_NAMESPACE=${ES_NAMESPACE:-default}
       - LS_SOURCES_DIR=/etc/logstash/conf.d
+      - FORTIGATE_TZ=${FORTIGATE_TZ:-UTC}
+      - PANOS_TZ=${PANOS_TZ:-UTC}
       - LS_JAVA_OPTS=-Xms${LS_HEAP:-512m} -Xmx${LS_HEAP:-512m}
       - XPACK_MONITORING_ENABLED=false
     volumes:
