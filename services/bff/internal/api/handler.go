@@ -1,19 +1,36 @@
+// Package api is the analyst-facing API. It holds no business logic: case reads and reviews
+// are forwarded to case-service.
 package api
 
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 )
 
-// Handler returns the BFF's HTTP mux.
-// In Phase 1 only /healthz is exposed. Phase 7 adds analyst triage endpoints.
-func Handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthz)
-	return mux
-}
+// Handler routes:
+//
+//	GET  /healthz
+//	GET  /api/cases[?review_status=pending]  -> case-service GET /cases
+//	GET  /api/cases/{id}                     -> case-service GET /cases/{id}
+//	POST /api/cases/{id}/review              -> case-service POST /cases/{id}/review
+func Handler(caseService *url.URL) http.Handler {
+	proxy := httputil.NewSingleHostReverseProxy(caseService)
+	forward := func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
+		r.Host = caseService.Host
+		proxy.ServeHTTP(w, r)
+	}
 
-func healthz(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
+	mux.HandleFunc("GET /api/cases", forward)
+	mux.HandleFunc("GET /api/cases/{id}", forward)
+	mux.HandleFunc("POST /api/cases/{id}/review", forward)
+	return mux
 }

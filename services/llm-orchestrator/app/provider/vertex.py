@@ -1,7 +1,7 @@
-"""
-Vertex AI (Gemini) LLM provider.
-Uses google-cloud-aiplatform SDK; credentials via Workload Identity in GKE (no key files).
-Model ID comes from env var LLM_MODEL_ID — never hard-coded (ADR-005).
+"""Gemini on GCP Vertex AI (ADR-005/006). Optional: pip install "llm-orchestrator[vertex]".
+
+Credentials come from Workload Identity on GKE (no key files). GCP_PROJECT and
+VERTEX_LOCATION select the endpoint; the model comes from LLM_MODEL_ID.
 """
 
 from __future__ import annotations
@@ -9,60 +9,44 @@ from __future__ import annotations
 import os
 import time
 
-import structlog
-
-from app.provider.base import LLMProvider, LLMResponse
-
-logger = structlog.get_logger(__name__)
-
-_MODEL_ID = os.getenv("LLM_MODEL_ID", "gemini-2.5-flash")
-_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
-_PROJECT = os.getenv("GCP_PROJECT", "")
+from app.provider.base import LLMProvider, LLMResponse, wrap_data
 
 
 class VertexAIProvider(LLMProvider):
-    """Calls Gemini via Vertex AI. Import google.generativeai ONLY inside this class."""
+    name = "vertex"
 
-    def __init__(self) -> None:
-        if not _PROJECT:
-            raise ValueError("GCP_PROJECT env var is required for VertexAIProvider")
-        # Lazy import so the mock provider works in CI without the SDK installed.
+    def __init__(self, model_id: str) -> None:
+        if not model_id:
+            raise ValueError("LLM_MODEL_ID is required for provider vertex")
+        project = os.getenv("GCP_PROJECT", "")
+        if not project:
+            raise ValueError("GCP_PROJECT is required for provider vertex")
         import vertexai  # type: ignore[import-untyped]
         from vertexai.generative_models import GenerativeModel  # type: ignore[import-untyped]
 
-        vertexai.init(project=_PROJECT, location=_LOCATION)
-        self._model = GenerativeModel(_MODEL_ID)
+        vertexai.init(project=project, location=os.getenv("VERTEX_LOCATION", "us-central1"))
+        self._model_id = model_id
+        self._model_factory = GenerativeModel
 
     @property
     def model_id(self) -> str:
-        return _MODEL_ID
+        return self._model_id
 
-    async def complete(
-        self,
-        system_prompt: str,
-        data_block: str,
-        *,
-        temperature: float = 0.2,
-        max_output_tokens: int = 1024,
-    ) -> LLMResponse:
+    async def complete(self, system_prompt: str, data_block: str, *, temperature: float = 0.2,
+                       max_output_tokens: int = 1024) -> LLMResponse:
         from vertexai.generative_models import GenerationConfig  # type: ignore[import-untyped]
 
-        prompt = f"{system_prompt}\n\n<data>\n{data_block}\n</data>"
-        config = GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            response_mime_type="application/json",
-        )
-
+        model = self._model_factory(self._model_id, system_instruction=system_prompt)
+        config = GenerationConfig(temperature=temperature, max_output_tokens=max_output_tokens,
+                                  response_mime_type="application/json")
         t0 = time.monotonic()
-        response = await self._model.generate_content_async(prompt, generation_config=config)
-        latency = (time.monotonic() - t0) * 1000
-
+        response = await model.generate_content_async(wrap_data(data_block),
+                                                      generation_config=config)
         usage = response.usage_metadata
         return LLMResponse(
             content=response.text,
-            model_id=_MODEL_ID,
+            model_id=self._model_id,
             input_tokens=usage.prompt_token_count,
             output_tokens=usage.candidates_token_count,
-            latency_ms=latency,
+            latency_ms=(time.monotonic() - t0) * 1000,
         )

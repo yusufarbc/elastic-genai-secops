@@ -1,11 +1,13 @@
-FROM golang:1.22-alpine AS builder
+# Build from the repository root: docker build -f services/detection-service/Dockerfile .
+FROM golang:1.22-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/detection-service ./cmd
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY libs/go-common libs/go-common
+COPY services/detection-service services/detection-service
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/detection-service ./services/detection-service/cmd
 
-FROM gcr.io/distroless/static-debian12
-COPY --from=builder /bin/detection-service /detection-service
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/detection-service /detection-service
 USER nonroot:nonroot
 ENTRYPOINT ["/detection-service"]

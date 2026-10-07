@@ -6,7 +6,7 @@ enrichment-service calls /mask (or posts a full EnrichedIncident to /mask-incide
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MaskRequest(BaseModel):
@@ -26,3 +26,22 @@ class UnmaskRequest(BaseModel):
 
 class UnmaskResponse(BaseModel):
     plaintext: str | None
+
+
+class MaskItem(BaseModel):
+    kind: str
+    plaintext: str
+
+
+class MaskBatchRequest(BaseModel):
+    incident_id: str
+    items: list[MaskItem] = Field(max_length=1000)
+
+
+class MaskBatchResponse(BaseModel):
+    tokens: list[str]
+
+
+class ReverseMapResponse(BaseModel):
+    incident_id: str
+    token_to_plain: dict[str, str]

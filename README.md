@@ -47,19 +47,21 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | Axis | Options | Status |
 | --- | --- | --- |
 | Profile | `siem` | Available (Compose, bare metal) |
-| Profile | `ai-lite` · `full` | Planned (Phases 3–4) |
+| Profile | `siem` + platform layer (AI triage pipeline) | Available (Compose) |
+| Profile | `ai-lite` · `full` on Kubernetes | Planned (Phase 3) |
 | Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available (`siem`) |
-| Target: Docker Compose | `deploy/compose/siem.yml` | Available (`siem`); platform services in Phase 4 |
+| Target: Docker Compose | `deploy/compose/siem.yml`, `platform.yml` | Available |
 | Target: Kubernetes (ECK) | `deploy/kubernetes/` lab, on-prem, GKE | Manifests available; kustomize overlays in Phase 3 |
-| LLM provider | `mock` · `vertex` | Available |
-| LLM provider | `ollama` · `openai-compatible` · `anthropic` | Planned (Phase 4) |
-| Message bus | NATS JetStream · GCP Pub/Sub | Planned (Phase 4) |
+| LLM provider | `mock` · `ollama` · `openai-compatible` · `anthropic` · `vertex` | Available: `mock` tested end to end; `ollama`, `openai-compatible`, `anthropic` tested against mocked HTTP only; `vertex` untested |
+| Message bus | NATS JetStream | Available |
+| Message bus | GCP Pub/Sub | Planned |
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
 | [`services/`](services) | Platform microservices: Go (detection-service, alert-gateway, case-service, bff) and Python (enrichment-service, masking-service, llm-orchestrator, mcp-server) |
+| [`libs/`](libs) | Shared code: message contracts, NATS bus, Elasticsearch client (`go-common`, `py-common`) |
 | [`content/`](content) | Elastic content loaded by `content/bootstrap.sh`: detection rules, ILM policy, component templates, roles |
 | [`integrations/sources/`](integrations/sources) | One folder per log source: Logstash pipeline and collector configuration |
 | [`deploy/`](deploy) | Deployment targets: `compose/`, `kubernetes/`, `baremetal/ubuntu/`, `endpoints/windows/` (GPO agent rollout) |
@@ -88,8 +90,15 @@ sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 
 See [docs/deployment/baremetal.md](docs/deployment/baremetal.md).
 
-**Platform development stack** (AI services, mocked LLM): the service images do not build yet
-(empty `go.sum` files, invalid Python build backend); this is fixed in Phase 4.
+**AI triage pipeline** on top of the SIEM (mock LLM by default; see [docs/genai/triage-pipeline.md](docs/genai/triage-pipeline.md)):
+
+```bash
+cd deploy/compose
+docker compose -f siem.yml -f platform.yml up -d --build
+python ../../tests/e2e/pipeline_test.py        # optional end-to-end check
+```
+
+Cases are served at <http://localhost:8080/api/cases>.
 
 **Kubernetes with ECK:** see [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md).
 
@@ -99,7 +108,7 @@ See [docs/deployment/baremetal.md](docs/deployment/baremetal.md).
 - Deployment: [bare metal](docs/deployment/baremetal.md) · [Kubernetes](docs/deployment/kubernetes.md)
 - Components: [Elasticsearch](docs/components/elasticsearch.md) · [Kibana](docs/components/kibana.md) · [Logstash](docs/components/logstash.md)
 - Integrations: [Windows audit policy](docs/integrations/windows-audit-policy.md)
-- GenAI: [MCP server](docs/genai/mcp-server.md)
+- GenAI: [triage pipeline](docs/genai/triage-pipeline.md) · [MCP server](docs/genai/mcp-server.md)
 - Operations: [troubleshooting](docs/operations/troubleshooting.md)
 - Deep dives: [history](docs/deep-dives/history-and-evolution.md) · [Elasticsearch internals](docs/deep-dives/elasticsearch-internals.md) · [ingestion](docs/deep-dives/ingestion-architecture.md) · [Kibana internals](docs/deep-dives/kibana-internals.md) · [security architecture](docs/deep-dives/security-architecture.md) · [comparative analysis](docs/deep-dives/comparative-analysis.md)
 
