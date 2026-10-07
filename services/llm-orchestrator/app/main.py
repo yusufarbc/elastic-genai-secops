@@ -1,8 +1,7 @@
-"""llm-orchestrator entry point.
+"""llm-orchestrator: esm.masked-incidents -> LLM triage -> esm.triage-decisions.
 
-The ONLY service that calls the LLM API.
-Subscribes to esm.masked-incidents, calls triage(), publishes TriageDecision.
-Provider is selected by LLM_PROVIDER env var: "mock" (default) | "vertex".
+The only service that calls an LLM. Every masked incident produces exactly one TriageResult,
+also when the budget is exhausted or the LLM fails, so no incident is lost.
 """
 
 from __future__ import annotations
@@ -11,46 +10,51 @@ import asyncio
 import os
 import signal
 
-import structlog
+from esm_common import bus as busmod
+from esm_common.contracts import SUBJECT_MASKED_INCIDENTS, SUBJECT_TRIAGE_RESULTS, MaskedIncident
+from esm_common.logging import configure
+from pydantic import ValidationError
 
+from app.audit import AuditLogger
 from app.orchestrator import BudgetTracker, LLMOrchestrator
-from app.provider import MockLLMProvider, VertexAIProvider
+from app.provider import build_provider
 
-logger = structlog.get_logger(__name__)
-
-_PROVIDER_NAME = os.getenv("LLM_PROVIDER", "mock")
-_MAX_TOKENS_PER_WINDOW = int(os.getenv("LLM_MAX_TOKENS_PER_WINDOW", "500000"))
-
-
-def _build_provider():
-    if _PROVIDER_NAME == "vertex":
-        return VertexAIProvider()
-    logger.info("LLM_PROVIDER=mock — using MockLLMProvider (no billed API calls)")
-    return MockLLMProvider()
+log = configure("llm-orchestrator")
 
 
 async def main() -> None:
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(20))
+    provider = build_provider()
+    budget = BudgetTracker(
+        max_tokens_per_window=int(os.getenv("LLM_MAX_TOKENS_PER_WINDOW", "500000")),
+        window_seconds=float(os.getenv("LLM_BUDGET_WINDOW_SECONDS", "3600")),
+    )
+    audit = AuditLogger.from_env()
+    orchestrator = LLMOrchestrator(provider, budget, audit)
+    bus = await busmod.from_env()
 
-    provider = _build_provider()
-    budget = BudgetTracker(max_tokens_per_window=_MAX_TOKENS_PER_WINDOW)
-    orchestrator = LLMOrchestrator(provider=provider, budget_tracker=budget)
-
-    loop = asyncio.get_running_loop()
     stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
 
-    logger.info(
-        "llm-orchestrator starting",
-        provider=_PROVIDER_NAME,
-        model=provider.model_id,
-        budget=_MAX_TOKENS_PER_WINDOW,
-    )
+    async def handle(data: bytes) -> None:
+        try:
+            incident = MaskedIncident.model_validate_json(data)
+        except ValidationError as exc:
+            log.error("invalid masked incident, dropping", error=str(exc))
+            return
+        result = await orchestrator.triage(incident)
+        await bus.publish(SUBJECT_TRIAGE_RESULTS, result, msg_id=incident.incident_id)
+        log.info("triage result published", incident_id=incident.incident_id,
+                 status=result.status, budget_used=budget.used)
 
-    # Phase 1: stub loop — Phase 2 adds Pub/Sub subscriber.
-    await stop.wait()
-    logger.info("llm-orchestrator stopped")
+    log.info("llm-orchestrator started", provider=provider.name, model=provider.model_id)
+    try:
+        await bus.subscribe(SUBJECT_MASKED_INCIDENTS, "llm-orchestrator", handle, stop)
+    finally:
+        await audit.close()
+        await bus.close()
+        log.info("llm-orchestrator stopped")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@
 #   ES_CA_CERT                CA certificate for ES and Kibana     (optional; empty = system trust)
 #   RETENTION_DAYS            delete logs/metrics after N days     (default 90)
 #   LOGSTASH_INGEST_PASSWORD  create/update user logstash_ingest   (optional)
+#   ESM_PLATFORM_PASSWORD     create/update user esm_platform      (optional; platform services)
 #   KIBANA_URL                import detection rules into Kibana   (optional, e.g. http://localhost:5601)
 set -Eeuo pipefail
 
@@ -80,6 +81,12 @@ if [[ -n "${LOGSTASH_INGEST_PASSWORD:-}" ]]; then
   log "user logstash_ingest (role logstash_writer)"
   es_put "/_security/user/logstash_ingest" \
     "{\"password\":\"${LOGSTASH_INGEST_PASSWORD}\",\"roles\":[\"logstash_writer\"],\"full_name\":\"Logstash ingest\"}"
+fi
+
+if [[ -n "${ESM_PLATFORM_PASSWORD:-}" ]]; then
+  log "user esm_platform (role esm_platform)"
+  es_put "/_security/user/esm_platform" \
+    "{\"password\":\"${ESM_PLATFORM_PASSWORD}\",\"roles\":[\"esm_platform\"],\"full_name\":\"Elastic-SecOps-Mastery platform services\"}"
 fi
 
 if [[ -n "${KIBANA_URL:-}" ]]; then

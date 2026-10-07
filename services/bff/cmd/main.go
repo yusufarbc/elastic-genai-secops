@@ -1,50 +1,47 @@
+// bff is the thin analyst API in front of case-service.
 package main
 
 import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"esm/bff/internal/api"
+	"esm/services/bff/internal/api"
 
-	"go.uber.org/zap"
+	"esm/libs/go-common/envx"
 )
 
 func main() {
-	log, _ := zap.NewProduction()
-	defer log.Sync() //nolint:errcheck
-
-	addr := os.Getenv("LISTEN_ADDR")
-	if addr == "" {
-		addr = ":8080"
+	log := envx.Logger("bff")
+	caseURL, err := url.Parse(envx.String("CASE_SERVICE_URL", "http://case-service:8002"))
+	if err != nil {
+		log.Error("invalid CASE_SERVICE_URL", "error", err)
+		os.Exit(1)
 	}
 
 	srv := &http.Server{
-		Addr:         addr,
-		Handler:      api.Handler(),
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:              envx.String("LISTEN_ADDR", ":8080"),
+		Handler:           api.Handler(caseURL),
+		ReadHeaderTimeout: 10 * time.Second,
 	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
-		log.Info("bff listening", zap.String("addr", addr))
+		log.Info("bff listening", "addr", srv.Addr, "case_service", caseURL.String())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal("bff listen error", zap.Error(err))
+			log.Error("bff listen error", "error", err)
+			stop()
 		}
 	}()
-
 	<-ctx.Done()
-	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(shutCtx); err != nil {
-		log.Error("bff shutdown error", zap.Error(err))
-	}
+	_ = srv.Shutdown(shutdown)
 	log.Info("bff stopped")
 }

@@ -1,7 +1,7 @@
-"""
-LLM provider interface. llm-orchestrator is the ONLY service that calls the LLM.
-All concrete implementations must satisfy this interface — never import a vendor SDK
-directly in business logic; import the interface here instead.
+"""LLM provider interface (ADR-018).
+
+llm-orchestrator is the ONLY service that calls an LLM. Business logic depends on this
+interface only; vendor specifics live in the provider modules.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class LLMResponse:
 
 
 class LLMProvider(ABC):
-    """Swappable LLM backend. Current default: Vertex AI (Gemini 2.5 Flash)."""
+    name: str = "base"
 
     @property
     @abstractmethod
@@ -34,4 +34,13 @@ class LLMProvider(ABC):
         *,
         temperature: float = 0.2,
         max_output_tokens: int = 1024,
-    ) -> LLMResponse: ...
+    ) -> LLMResponse:
+        """Send the system prompt and the (already masked) data block; return raw text.
+
+        Implementations must keep the two separate: the data block goes into its own
+        user message wrapped in <data> tags, never into the system instructions.
+        """
+
+
+def wrap_data(data_block: str) -> str:
+    return f"<data>\n{data_block}\n</data>"
