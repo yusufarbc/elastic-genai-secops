@@ -1,0 +1,9 @@
+metricbeat.modules:
+  - module: system
+    metricsets: ["cpu", "memory", "network", "diskio", "filesystem"]
+    enabled: true
+    period: 10s
+
+output.logstash:
+  hosts: ["ELK_SERVER_IP:5046"]
+  ssl.enabled: false
