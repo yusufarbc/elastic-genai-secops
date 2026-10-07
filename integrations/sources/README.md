@@ -11,7 +11,6 @@ configuration for the sending side. `pipelines.yml` enables all of them; remove 
 | Windows | `windows/logstash.conf` | 5045/tcp (beats) | Winlogbeat on endpoints or on a WEC server | `logs-windows-*` |
 | Metricbeat / Heartbeat | `beats-health/logstash.conf` | 5046/tcp (beats) | Metricbeat, Heartbeat | `metrics-metricbeat-*`, `logs-heartbeat-*` |
 | Kaspersky | `kaspersky/logstash.conf` | 5047/tcp (beats) | Filebeat reading the KSC syslog export | `logs-kaspersky-*` |
-| Libraesva | `libraesva/logstash.conf` | 5048/tcp (beats) | Filebeat reading the gateway syslog | `logs-libraesva-*` |
 | Syslog | `syslog/logstash.conf` | 5514/udp+tcp (RFC3164), 5515/tcp (RFC5424) | Any syslog sender | `logs-syslog-*` |
 | FortiGate | `fortigate/logstash.conf` | 5516/udp+tcp | FortiGate syslog (key=value) | `logs-fortigate-*` |
 | Palo Alto (syslog) | `paloalto/logstash-syslog.conf` | 5517/udp+tcp | PAN-OS syslog server profile | `logs-paloalto-*` |

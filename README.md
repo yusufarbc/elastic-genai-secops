@@ -21,7 +21,7 @@ flowchart LR
     subgraph Sources
         W[Windows<br/>Winlogbeat · WEF · Sysmon]
         F[Firewalls<br/>FortiGate · Palo Alto]
-        O[Kaspersky · Libraesva<br/>Syslog]
+        O[Kaspersky<br/>Syslog]
     end
     Sources --> LS[Logstash]
     LS --> ES[(Elasticsearch)]

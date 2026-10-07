@@ -253,7 +253,6 @@ Log source ports (open them in your firewall as needed):
   5045/tcp  Windows (Winlogbeat, WEF)      5515/tcp      syslog RFC5424
   5046/tcp  Metricbeat / Heartbeat         5516/udp+tcp  FortiGate
   5047/tcp  Kaspersky                      5517/udp+tcp  Palo Alto syslog
-  5048/tcp  Libraesva
-  e.g.: ufw allow 5601/tcp && ufw allow 5044:5048/tcp && ufw allow 5514:5517/tcp && ufw allow 5514:5517/udp
+  e.g.: ufw allow 5601/tcp && ufw allow 5044:5047/tcp && ufw allow 5514:5517/tcp && ufw allow 5514:5517/udp
 ================================================================
 EOF

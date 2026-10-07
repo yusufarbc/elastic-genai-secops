@@ -18,7 +18,7 @@ This repository consolidates three projects into one platform. Each phase ships 
 
 ### Phase 2 follow-ups
 
-- Kaspersky and Libraesva pipelines tag and store events but do not parse the message yet (CEF/LEEF or vendor format).
+- The Kaspersky pipeline tags and stores events but does not parse the message yet (CEF/LEEF depending on the KSC export).
 - WEB-* detection rules ship disabled: no web server log source is included yet.
 - Beats → Logstash traffic is not encrypted (`ssl.enabled: false`); add an optional TLS input.
 - Winlogbeat and Filebeat `panw` ingest pipelines must be loaded by hand once per version (`setup --pipelines`).

@@ -66,7 +66,7 @@ Open only the ports of the sources you use:
 
 ```bash
 sudo ufw allow 5601/tcp                     # Kibana
-sudo ufw allow 5044:5048/tcp                # Beats inputs
+sudo ufw allow 5044:5047/tcp                # Beats inputs
 sudo ufw allow 5514:5517/tcp
 sudo ufw allow 5514:5517/udp                # syslog, FortiGate, Palo Alto
 ```
