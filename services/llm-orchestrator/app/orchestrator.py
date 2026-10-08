@@ -1,4 +1,4 @@
-"""Triage one masked incident with the configured LLM (CLAUDE.md sections 1, 5, 6).
+"""Triage one masked incident with the configured LLM (design rules 1, 3, 4, ROADMAP.md).
 
 - One call per incident; the input is the curated MaskedIncident, never raw logs.
 - System instructions and data are separate messages; data sits inside <data> tags.

@@ -1,0 +1,109 @@
+# Analyst-facing bff API. Used as documentation and as the target definition for the DAST scan
+# (OWASP ZAP API scan in .github/workflows/pipeline.yml). Keep in sync with internal/api/handler.go.
+openapi: 3.0.3
+info:
+  title: esm bff
+  version: "0.1.0"
+  description: Thin analyst API. Case reads and reviews are forwarded to case-service.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Liveness check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { status: { type: string } } }
+  /api/cases:
+    get:
+      summary: List cases, newest first
+      parameters:
+        - name: review_status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected, all] }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      responses:
+        "200":
+          description: Cases
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cases: { type: array, items: { $ref: "#/components/schemas/Case" } }
+                  count: { type: integer }
+        "502": { $ref: "#/components/responses/Error" }
+  /api/cases/{id}:
+    get:
+      summary: Get one case (un-masked)
+      parameters:
+        - $ref: "#/components/parameters/CaseID"
+      responses:
+        "200":
+          description: Case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+  /api/cases/{id}/review:
+    post:
+      summary: Record the analyst decision for a case
+      parameters:
+        - $ref: "#/components/parameters/CaseID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, analyst]
+              properties:
+                status: { type: string, enum: [approved, rejected] }
+                analyst: { type: string, example: analyst1 }
+                notes: { type: string, example: confirmed true positive }
+      responses:
+        "200":
+          description: Updated case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Case" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+components:
+  parameters:
+    CaseID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, example: inc-0001 }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { type: object, properties: { error: { type: string } } }
+  schemas:
+    Case:
+      type: object
+      properties:
+        id: { type: string }
+        incident_id: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        triage_status: { type: string }
+        review_status: { type: string }
+        severity: { type: string }
+        risk_score: { type: integer }
+        alert_count: { type: integer }
+        summary: { type: string }
+        mitre_techniques: { type: array, items: { type: string } }
+        affected_hosts: { type: array, items: { type: string } }
+        affected_users: { type: array, items: { type: string } }
+        source_ips: { type: array, items: { type: string } }

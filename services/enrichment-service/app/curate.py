@@ -1,4 +1,4 @@
-"""Turn an incident into the curated, masked payload the LLM sees (CLAUDE.md section 5).
+"""Turn an incident into the curated, masked payload the LLM sees (design rule 3, ROADMAP.md).
 
 Only aggregated facts and pseudonymized identifiers leave this module. Free-text event fields
 (command lines, messages) are deliberately not forwarded because they can carry PII and

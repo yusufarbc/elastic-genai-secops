@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-06-30
 
-**Context:** CLAUDE.md hard constraint: verify every Elastic feature against the free/Basic tier before depending on it.
+**Context:** Design rule 6 (ROADMAP.md): verify every Elastic feature against the free/Basic tier before depending on it.
 
 **Findings (as of Elasticsearch 8.x):**
 
