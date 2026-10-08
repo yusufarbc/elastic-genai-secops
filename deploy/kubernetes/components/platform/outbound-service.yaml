@@ -1,15 +1,18 @@
-# Stateless; scale with replicas (durable NATS consumer).
+# Notifications and tickets for case events (docs/integrations/outbound.md). Stateless.
+# Channel URLs and API keys come from the optional Secret esm-outbound, e.g.:
+#   kubectl -n esm create secret generic esm-outbound \
+#     --from-literal=SLACK_WEBHOOK_URL=https://hooks.slack.com/... --from-literal=ABUSEIPDB_API_KEY=...
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: enrichment-service
+  name: outbound-service
 spec:
   replicas: 1
   selector:
-    matchLabels: { app.kubernetes.io/name: enrichment-service }
+    matchLabels: { app.kubernetes.io/name: outbound-service }
   template:
     metadata:
-      labels: { app.kubernetes.io/name: enrichment-service, app.kubernetes.io/component: platform }
+      labels: { app.kubernetes.io/name: outbound-service, app.kubernetes.io/component: platform }
     spec:
       serviceAccountName: esm-platform
       securityContext:
@@ -18,11 +21,10 @@ spec:
         runAsGroup: 10001
         seccompProfile: { type: RuntimeDefault }
       containers:
-        - name: enrichment-service
-          image: esm/enrichment-service
+        - name: outbound-service
+          image: esm/outbound-service
           envFrom:
             - configMapRef: { name: esm-platform-config }
-            # Threat-intel keys (ABUSEIPDB_API_KEY, MISP_URL, MISP_API_KEY), optional
             - secretRef: { name: esm-outbound, optional: true }
           securityContext:
             allowPrivilegeEscalation: false
@@ -30,7 +32,7 @@ spec:
             capabilities: { drop: ["ALL"] }
           resources:
             requests: { cpu: 50m, memory: 96Mi }
-            limits: { memory: 384Mi }
+            limits: { memory: 256Mi }
           volumeMounts:
             - { name: tmp, mountPath: /tmp }
       volumes:

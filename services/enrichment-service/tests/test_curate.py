@@ -50,3 +50,27 @@ async def test_timeline_sorted_and_summary_aggregated() -> None:
 def test_is_private() -> None:
     assert is_private("192.168.1.1") and is_private("127.0.0.1")
     assert not is_private("8.8.8.8") and not is_private("not-an-ip")
+
+
+class FakeTI:
+    enabled = True
+
+    def __init__(self) -> None:
+        self.looked_up: list[str] = []
+
+    async def lookup(self, ip: str):  # type: ignore[no-untyped-def]
+        from esm_outbound.threatintel import Verdict
+
+        self.looked_up.append(ip)
+        return Verdict(malicious=True, score=90, sources=["abuseipdb"])
+
+
+async def test_threat_intel_only_for_external_ips() -> None:
+    ti = FakeTI()
+    masked = await build_masked_incident(incident(), fake_mask, ti)  # type: ignore[arg-type]
+    assert ti.looked_up == ["185.199.108.1"]  # 10.0.0.5 never leaves the platform
+    external = [ip for ip in masked.source_ips if not ip.private]
+    assert external[0].ti_malicious is True and external[0].ti_score == 90
+    assert external[0].token.startswith("ip_")
+    assert "threat intel: 1 of 1 external IP(s) flagged malicious" in masked.summary
+    assert "185.199.108.1" not in masked.model_dump_json()
