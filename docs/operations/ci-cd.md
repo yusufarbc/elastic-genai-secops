@@ -337,6 +337,8 @@ review) are set in `pipeline.yml`. Lowering them is a pull request like any othe
 | Merge blocked although `Pipeline gate` is green | The ruleset requires all review conversations to be resolved, and code scanning posts its findings as PR review comments. Fix the finding (the comment then resolves itself) or resolve the conversation with a reason. |
 | CodeQL: "Unpinned tag for a non-immutable Action" | Third-party actions must be pinned to a full commit SHA with the version as a comment (`uses: owner/action@<sha> # vX.Y.Z`). Dependabot updates both. This applies to every action, including `actions/*` and `github/*`: Semgrep and Scorecard flag mutable tags anywhere. |
 | Promotion PR blocked by "branch must be up to date" | `production` moved since `staging` was branched (a hotfix). Merge `production` into `staging` first. |
+| Release job skipped although the gate passed | A job's `if:` without a status function gets an implicit `success()`, which is false when any upstream job was skipped. Jobs after the gate use `!cancelled()`. |
+| Promotion PR says "This branch is out-of-date" | The merge commit of the previous promotion exists only on `production`. Merge `production` into `staging` with a pull request (a back-merge), then the promotion PR can merge. |
 | Release job: `denied` from GHCR | The package exists but is not linked to this repository. In the package settings, give the repository write access. |
 
 ## Adding a service
