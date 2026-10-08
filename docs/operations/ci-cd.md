@@ -307,6 +307,8 @@ review) are set in `pipeline.yml`. Lowering them is a pull request like any othe
 | `dependency-review`: "not supported on this repository" | Turn on the dependency graph (see [settings](#repository-settings-the-pipeline-relies-on)). |
 | e2e times out waiting for alerts | Kibana rules run every 5 minutes. Check `stack-logs.txt` in the `e2e-dast-reports` artifact: usually Elasticsearch memory or the `rules` import container. |
 | ZAP job fails | Open `zap-bff.html` in the artifact; each High alert is also printed as an `::error` line. |
+| Merge blocked although `Pipeline gate` is green | The ruleset requires all review conversations to be resolved, and code scanning posts its findings as PR review comments. Fix the finding (the comment then resolves itself) or resolve the conversation with a reason. |
+| CodeQL: "Unpinned tag for a non-immutable Action" | Third-party actions must be pinned to a full commit SHA with the version as a comment (`uses: owner/action@<sha> # vX.Y.Z`). Dependabot updates both. Actions from `actions/*` and `github/*` may use tags. |
 | Promotion PR blocked by "branch must be up to date" | `production` moved since `staging` was branched (a hotfix). Merge `production` into `staging` first. |
 | Release job: `denied` from GHCR | The package exists but is not linked to this repository. In the package settings, give the repository write access. |
 
