@@ -1,94 +1,102 @@
 # Elastic-SecOps-Mastery
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Elastic Stack](https://img.shields.io/badge/Elastic%20Stack-8.12+-005571?logo=elasticsearch)
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
+![Elastic Stack](https://img.shields.io/badge/Elastic%20Stack-8.13-005571?logo=elasticsearch)
+![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)
 
-**Next-Generation Security Operations Center (SOC) framework combining hardened Elastic Stack infrastructure with Generative AI analysis.**
+An open, AI-assisted Security Operations platform built on the **Basic-licensed Elastic Stack**.
+Logs are collected and parsed with Logstash and Beats, Elastic detection rules raise alerts, alerts are
+correlated into incidents, personal data is masked, and an LLM suggests a triage decision that an
+analyst reviews. The LLM never acts on its own.
 
----
+> **Status:** this repository consolidates three earlier projects (an Ubuntu ELK installer,
+> an MCP-based GenAI SOC prototype, and the Vigil AI-SOC platform). The consolidation runs in phases;
+> see [ROADMAP.md](ROADMAP.md) for what works today and what is still in progress.
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
-graph TD
-    subgraph Infrastructure
-        ELK[Elastic Stack] --> Logstash
-        Logstash --> Agents[Beats/Agents]
+flowchart LR
+    subgraph Sources
+        W[Windows<br/>Winlogbeat · WEF · Sysmon]
+        F[Firewalls<br/>FortiGate · Palo Alto]
+        O[Kaspersky · Libraesva<br/>Syslog]
     end
-    
-    subgraph GenAI_SOC
-        MCP[MCP Server] --> ELK
-        MCP --> LLM[LLM Provider]
-        User --> MCP
-    end
-    
-    Agents -->|Logs| ELK
-    ELK -->|Alerts| MCP
-    MCP -->|Enrichment| ELK
+    Sources --> LS[Logstash]
+    LS --> ES[(Elasticsearch)]
+    ES --> KB[Kibana<br/>detection rules]
+    KB -->|alerts| DS[detection-service]
+    DS -->|esm.alerts| AG[alert-gateway<br/>correlation]
+    AG -->|esm.incidents| EN[enrichment-service]
+    EN --> MS[masking-service]
+    MS -->|esm.masked-incidents| LO[llm-orchestrator]
+    LO -->|esm.triage-decisions| CS[case-service]
+    CS --> BFF[bff / analyst]
+    MCP[mcp-server] -.->|read-only tools| ES
 ```
 
-## 🚀 Key Features
+Design rules (see [CLAUDE.md](CLAUDE.md) and the [ADRs](docs/architecture/adr/README.md)):
+one LLM call per incident, never per alert; only masked data reaches the LLM; LLM output is
+schema-validated JSON and every call is audited; only Basic-tier Elastic features.
 
-*   **Automated Infrastructure**: Deployment scripts for a production-ready Elastic Stack.
-*   **AI-Driven Analysis**: Python-based MCP server that auto-enriches alerts with LLM insights.
-*   **Threat Hunting**: Pre-built KQL queries and scenarios for advanced detection.
-*   **Modular Design**: Clean separation between infrastructure (`infrastructure/`) and application logic (`genai-soc/`).
+## Flexible by design
 
-## 📂 Directory Structure
+Choose **what** to install (profile) independently of **where** it runs (target).
 
-*   `infrastructure/`: Configuration and build scripts for Elasticsearch, Kibana, and Logstash.
-*   `infrastructure/genai-soc/`: The Python application handling AI integration.
-*   `docs/`: Comprehensive guides and scenarios.
+| Axis | Options | Status |
+| --- | --- | --- |
+| Profile | `siem` · `ai-lite` · `full` | Planned (Phase 3) |
+| Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available; Logstash pipeline issues fixed in Phase 2 |
+| Target: Docker Compose | `deploy/compose/` | Service builds fixed in Phase 4; layered profiles in Phase 3 |
+| Target: Kubernetes (ECK) | `deploy/kubernetes/` lab, on-prem, GKE | Manifests available; kustomize overlays in Phase 3 |
+| LLM provider | `mock` · `vertex` | Available |
+| LLM provider | `ollama` · `openai-compatible` · `anthropic` | Planned (Phase 4) |
+| Message bus | NATS JetStream · GCP Pub/Sub | Planned (Phase 4) |
 
----
+## Repository layout
 
-## ⚡ Quick Start
+| Path | Contents |
+| --- | --- |
+| [`services/`](services) | Platform microservices: Go (detection-service, alert-gateway, case-service, bff) and Python (enrichment-service, masking-service, llm-orchestrator, mcp-server) |
+| [`content/`](content) | Elastic content: detection rules, Fleet policies (templates, ILM, dashboards and hunting queries in later phases) |
+| [`integrations/sources/`](integrations/sources) | One folder per log source: Logstash pipeline and collector configuration |
+| [`deploy/`](deploy) | Deployment targets: `compose/`, `kubernetes/`, `baremetal/ubuntu/`, `endpoints/windows/` (GPO agent rollout) |
+| [`docs/`](docs) | Guides, component references, deep dives and architecture decisions |
 
-### 1. Build Infrastructure
-Navigate to `infrastructure/` and configure your stack.
+## Quick start
+
+**Single-host SIEM on Ubuntu 22.04** (Elasticsearch, Kibana, Logstash):
+
 ```bash
-cd infrastructure
-# Run your deployment scripts (e.g., docker-compose up -d)
+git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
+cd Elastic-SecOps-Mastery
+sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 ```
 
-### 2. Connect GenAI SOC
-Set up the AI analysis engine.
+See [docs/deployment/baremetal.md](docs/deployment/baremetal.md).
+
+**Platform development stack** (Docker Compose, mocked LLM). The service images do not build yet
+(empty `go.sum` files, invalid Python build backend); this is fixed in Phase 4:
+
 ```bash
-cd infrastructure/genai-soc
-cp .env.example .env  # Add your API keys
-pip install -r requirements.txt
-python server.py
+cp .env.example .env
+make up      # Kibana on :5601, BFF on :8080
+make test    # unit tests
 ```
 
-### 3. Start Hunting
-Check `docs/hunting.md` for your first scenario.
+**Kubernetes with ECK:** see [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md).
 
----
+## Documentation
 
-## 📚 Documentation
+- Architecture: [overview](docs/architecture/overview.md) · [decision records](docs/architecture/adr/README.md)
+- Deployment: [bare metal](docs/deployment/baremetal.md) · [Kubernetes](docs/deployment/kubernetes.md)
+- Components: [Elasticsearch](docs/components/elasticsearch.md) · [Kibana](docs/components/kibana.md) · [Logstash](docs/components/logstash.md)
+- Integrations: [Windows audit policy](docs/integrations/windows-audit-policy.md)
+- GenAI: [MCP server](docs/genai/mcp-server.md)
+- Operations: [troubleshooting](docs/operations/troubleshooting.md)
+- Deep dives: [history](docs/deep-dives/history-and-evolution.md) · [Elasticsearch internals](docs/deep-dives/elasticsearch-internals.md) · [ingestion](docs/deep-dives/ingestion-architecture.md) · [Kibana internals](docs/deep-dives/kibana-internals.md) · [security architecture](docs/deep-dives/security-architecture.md) · [comparative analysis](docs/deep-dives/comparative-analysis.md)
 
-### Core Concepts
-*   [Project Context & History](docs/project_context.md)
-*   [Architecture](docs/architecture.md)
+## License
 
-### Setup Guides
-*   [Docker (Quickstart)](docs/setup_docker.md)
-*   [Kubernetes (Production)](docs/setup_kubernetes.md)
-*   [Bare Metal](docs/setup_baremetal.md)
-*   [GenAI SOC Service](docs/setup_genai.md)
-
-### Configuration Details
-*   [Elasticsearch](docs/component_elasticsearch.md)
-*   [Kibana](docs/component_kibana.md)
-*   [Logstash](docs/component_logstash.md)
-*   [Windows GPO](docs/config_gpo.md)
-
-### Operations
-*   [Usage Guide](docs/usage.md)
-*   [Threat Hunting](docs/hunting.md)
-*   [Troubleshooting](docs/troubleshooting.md)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read `docs/CONTRIBUTING.md` (coming soon).
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE).
