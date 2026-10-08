@@ -12,9 +12,11 @@ from collections import Counter
 from collections.abc import Awaitable, Callable
 
 from esm_common.contracts import Incident, MaskedIncident, MaskedIP, TimelineEntry
+from esm_outbound.threatintel import ThreatIntel
 
 # mask(incident_id, kind, values) -> {plaintext: token}
 MaskFn = Callable[[str, str, list[str]], Awaitable[dict[str, str]]]
+MAX_TI_LOOKUPS = 20  # external IPs looked up per incident
 
 MAX_TIMELINE = 50
 MAX_RULES_IN_SUMMARY = 5
@@ -32,7 +34,21 @@ def is_private(ip: str) -> bool:
     return addr.is_private or addr.is_loopback or addr.is_link_local
 
 
-async def build_masked_incident(incident: Incident, mask: MaskFn) -> MaskedIncident:
+async def _threat_intel(ips: list[str], ti: ThreatIntel | None) -> dict[str, MaskedIP]:
+    """Verdicts for external addresses only; internal addresses never leave the platform."""
+    if ti is None or not ti.enabled:
+        return {}
+    out: dict[str, MaskedIP] = {}
+    for ip in [i for i in ips if not is_private(i)][:MAX_TI_LOOKUPS]:
+        verdict = await ti.lookup(ip)
+        if verdict is not None:
+            out[ip] = MaskedIP(token="", ti_malicious=verdict.malicious, ti_score=verdict.score,
+                               ti_sources=verdict.sources or None)
+    return out
+
+
+async def build_masked_incident(incident: Incident, mask: MaskFn,
+                                ti: ThreatIntel | None = None) -> MaskedIncident:
     hosts = _unique([*(incident.affected_hosts or []), *(a.host_name for a in incident.alerts)])
     users = _unique([*(incident.affected_users or []), *(a.user_name for a in incident.alerts)])
     ips = _unique([*(incident.source_ips or []), *(a.source_ip for a in incident.alerts)])
@@ -40,6 +56,7 @@ async def build_masked_incident(incident: Incident, mask: MaskFn) -> MaskedIncid
     host_tok = await mask(incident.id, "host", hosts) if hosts else {}
     user_tok = await mask(incident.id, "user", users) if users else {}
     ip_tok = await mask(incident.id, "ip", ips) if ips else {}
+    verdicts = await _threat_intel(ips, ti)
 
     alerts = sorted(incident.alerts, key=lambda a: a.timestamp)
     timeline = [
@@ -61,7 +78,11 @@ async def build_masked_incident(incident: Incident, mask: MaskFn) -> MaskedIncid
         summary="",
         affected_hosts=[host_tok[h] for h in hosts],
         affected_users=[user_tok[u] for u in users],
-        source_ips=[MaskedIP(token=ip_tok[ip], private=is_private(ip)) for ip in ips],
+        source_ips=[
+            verdicts[ip].model_copy(update={"token": ip_tok[ip], "private": False})
+            if ip in verdicts else MaskedIP(token=ip_tok[ip], private=is_private(ip))
+            for ip in ips
+        ],
         timeline=timeline,
         mitre_techniques=techniques,
         risk_score=incident.risk_score,
@@ -87,4 +108,9 @@ def summarize(m: MaskedIncident, rules: Counter[str], first, last) -> str:  # ty
         f"MITRE: {', '.join(m.mitre_techniques) or 'none'}",
         f"risk score {m.risk_score}/100",
     ]
+    checked = [ip for ip in m.source_ips if ip.ti_malicious is not None]
+    if checked:
+        flagged = sum(1 for ip in checked if ip.ti_malicious)
+        parts.insert(
+            4, f"threat intel: {flagged} of {len(checked)} external IP(s) flagged malicious")
     return "; ".join(parts) + "."

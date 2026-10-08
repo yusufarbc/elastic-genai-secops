@@ -52,6 +52,45 @@ services:
     environment:
       <<: *platform-es
       MASKING_SERVICE_URL: http://masking-service:8001
+      # Threat intel for external IPs (optional; empty = disabled)
+      ABUSEIPDB_API_KEY: ${ABUSEIPDB_API_KEY:-}
+      ABUSEIPDB_MIN_SCORE: ${ABUSEIPDB_MIN_SCORE:-50}
+      MISP_URL: ${MISP_URL:-}
+      MISP_API_KEY: ${MISP_API_KEY:-}
+      MISP_VERIFY_TLS: ${MISP_VERIFY_TLS:-true}
+
+  # Notifications and ticketing for case events (docs/integrations/outbound.md); every channel
+  # is disabled until its URL is set in .env
+  outbound-service:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/outbound-service/Dockerfile }
+    image: esm/outbound-service:dev
+    environment:
+      NATS_URL: nats://nats:4222
+      NOTIFY_ON: ${NOTIFY_ON:-created}
+      NOTIFY_MIN_SEVERITY: ${NOTIFY_MIN_SEVERITY:-high}
+      NOTIFY_DETAIL: ${NOTIFY_DETAIL:-summary}
+      TICKET_ON: ${TICKET_ON:-approved}
+      TICKET_DETAIL: ${TICKET_DETAIL:-full}
+      CASE_URL: ${CASE_URL:-http://localhost:8080/api/cases}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      TEAMS_WEBHOOK_URL: ${TEAMS_WEBHOOK_URL:-}
+      WEBHOOK_URL: ${WEBHOOK_URL:-}
+      WEBHOOK_TOKEN: ${WEBHOOK_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TO: ${SMTP_TO:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      THEHIVE_URL: ${THEHIVE_URL:-}
+      THEHIVE_API_KEY: ${THEHIVE_API_KEY:-}
+      JIRA_URL: ${JIRA_URL:-}
+      JIRA_USER: ${JIRA_USER:-}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:-}
+      JIRA_PROJECT: ${JIRA_PROJECT:-}
+      JIRA_ISSUE_TYPE: ${JIRA_ISSUE_TYPE:-Task}
 
   llm-orchestrator:
     <<: *platform-service

@@ -55,15 +55,19 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | Message bus | NATS JetStream | Available |
 | Message bus | GCP Pub/Sub | Planned |
 | MCP access | read-only, masked tools; stdio or bearer-token HTTP | Available |
+| Notifications | Slack · Teams · webhook · e-mail (no entities by default) | Available |
+| Ticketing | TheHive · Jira (after analyst approval) | Available |
+| Threat intel | AbuseIPDB · MISP (external IPs, in enrichment) | Available |
 
 ## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| [`services/`](services) | Platform microservices: Go (detection-service, alert-gateway, case-service, bff) and Python (enrichment-service, masking-service, llm-orchestrator, mcp-server) |
+| [`services/`](services) | Platform microservices: Go (detection-service, alert-gateway, case-service, bff) and Python (enrichment-service, masking-service, llm-orchestrator, mcp-server, outbound-service) |
 | [`libs/`](libs) | Shared code: message contracts, NATS bus, Elasticsearch client (`go-common`, `py-common`) |
 | [`content/`](content) | Elastic content loaded by `content/bootstrap.sh`: detection rules, ILM policy, component templates, roles |
 | [`integrations/sources/`](integrations/sources) | One folder per log source: Logstash pipeline and collector configuration |
+| [`integrations/outbound/`](integrations/outbound) | Notification, ticketing and threat-intel adapters |
 | [`deploy/`](deploy) | Deployment targets: `compose/`, `kubernetes/`, `baremetal/ubuntu/`, `endpoints/windows/` (GPO agent rollout) |
 | [`docs/`](docs) | Guides, component references, deep dives and architecture decisions |
 
@@ -117,7 +121,7 @@ See [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md) for ECK insta
 - Architecture: [overview](docs/architecture/overview.md) · [decision records](docs/architecture/adr/README.md)
 - Deployment: [bare metal](docs/deployment/baremetal.md) · [Kubernetes](docs/deployment/kubernetes.md)
 - Components: [Elasticsearch](docs/components/elasticsearch.md) · [Kibana](docs/components/kibana.md) · [Logstash](docs/components/logstash.md)
-- Integrations: [Windows audit policy](docs/integrations/windows-audit-policy.md)
+- Integrations: [log sources](integrations/sources/README.md) · [notifications, ticketing, threat intel](docs/integrations/outbound.md) · [Windows audit policy](docs/integrations/windows-audit-policy.md)
 - GenAI: [triage pipeline](docs/genai/triage-pipeline.md) · [MCP server](docs/genai/mcp-server.md)
 - Operations: [troubleshooting](docs/operations/troubleshooting.md)
 - Deep dives: [history](docs/deep-dives/history-and-evolution.md) · [Elasticsearch internals](docs/deep-dives/elasticsearch-internals.md) · [ingestion](docs/deep-dives/ingestion-architecture.md) · [Kibana internals](docs/deep-dives/kibana-internals.md) · [security architecture](docs/deep-dives/security-architecture.md) · [comparative analysis](docs/deep-dives/comparative-analysis.md)

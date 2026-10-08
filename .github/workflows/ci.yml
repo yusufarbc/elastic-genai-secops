@@ -37,17 +37,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [masking-service, enrichment-service, llm-orchestrator, mcp-server]
+        service: [masking-service, enrichment-service, llm-orchestrator, mcp-server, outbound-service]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: pip install ruff -e libs/py-common -e "services/${{ matrix.service }}[dev]"
+      - run: pip install ruff -e libs/py-common -e "integrations/outbound[dev]" -e "services/${{ matrix.service }}[dev]"
       - run: ruff check libs/py-common services/${{ matrix.service }}
       - run: python -m pytest -q tests
         working-directory: services/${{ matrix.service }}
+
+  outbound-adapters:
+    name: Python · integrations/outbound
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install ruff -e libs/py-common -e "integrations/outbound[dev]"
+      - run: ruff check integrations/outbound
+      - run: python -m pytest -q tests
+        working-directory: integrations/outbound
 
   content:
     name: Content · rules + configs
@@ -113,7 +127,8 @@ jobs:
       fail-fast: false
       matrix:
         service: [detection-service, alert-gateway, case-service, bff,
-                  masking-service, enrichment-service, llm-orchestrator, mcp-server]
+                  masking-service, enrichment-service, llm-orchestrator, mcp-server,
+                  outbound-service]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3

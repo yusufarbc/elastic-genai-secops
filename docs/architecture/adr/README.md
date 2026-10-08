@@ -28,6 +28,7 @@ Format per entry: **Decision · Status · Date · Context · Alternatives · Rat
 | [ADR-020](020-apache-2-0-license.md) | Apache-2.0 license for the consolidated repository |
 | [ADR-021](021-naming.md) | Naming: Elastic-SecOps-Mastery and the `esm` prefix |
 | [ADR-022](022-mcp-server-read-only-masked.md) | MCP server is read-only and returns masked data |
+| [ADR-023](023-outbound-integrations.md) | Outbound integrations inform and record, they never act |
 
 ## Open items to resolve (carry forward)
 

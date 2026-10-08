@@ -10,8 +10,23 @@ const (
 	SubjectIncidents       = "esm.incidents"        // alert-gateway -> enrichment-service
 	SubjectMaskedIncidents = "esm.masked-incidents" // enrichment-service -> llm-orchestrator
 	SubjectTriageResults   = "esm.triage-decisions" // llm-orchestrator -> case-service
+	SubjectCaseEvents      = "esm.case-events"      // case-service -> outbound-service
 	SubjectDLQ             = "esm.dlq"              // messages that failed MaxDeliver times
 )
+
+// Case event types published on esm.case-events.
+const (
+	CaseEventCreated  = "created"  // a new case is waiting for analyst review
+	CaseEventReviewed = "reviewed" // an analyst approved or rejected the case
+)
+
+// CaseEvent notifies outbound integrations (notifications, ticketing). Case is the full,
+// un-masked case document as stored by case-service; consumers decide what leaves the platform.
+type CaseEvent struct {
+	Event  string `json:"event"`
+	CaseID string `json:"case_id"`
+	Case   any    `json:"case"`
+}
 
 // Alert is a normalized Kibana Security alert, published by detection-service.
 type Alert struct {
@@ -50,6 +65,10 @@ type MaskedIP struct {
 	Token      string `json:"token"`
 	GeoCountry string `json:"geo_country,omitempty"`
 	Private    bool   `json:"private"`
+	// Threat-intel verdict for external addresses (nil when not looked up).
+	TIMalicious *bool    `json:"ti_malicious,omitempty"`
+	TIScore     int      `json:"ti_score,omitempty"`
+	TISources   []string `json:"ti_sources,omitempty"`
 }
 
 // TimelineEntry is one alert of a masked incident.

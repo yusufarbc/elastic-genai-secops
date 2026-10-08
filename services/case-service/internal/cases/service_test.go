@@ -84,13 +84,35 @@ func (s *memStore) Get(_ context.Context, id string) (*Case, error) {
 }
 func (s *memStore) List(context.Context, string, int) ([]*Case, error) { return nil, nil }
 
+type recordedEvent struct{ subject, msgID, event string }
+
+type fakePublisher struct{ events []recordedEvent }
+
+func (p *fakePublisher) Publish(_ context.Context, subject, msgID string, v any) error {
+	p.events = append(p.events, recordedEvent{subject, msgID, v.(contracts.CaseEvent).Event})
+	return nil
+}
+
 type mapUnmasker map[string]string
 
 func (m mapUnmasker) ReverseMap(context.Context, string) (map[string]string, error) { return m, nil }
 
 func TestReviewFlowAndRedelivery(t *testing.T) {
 	store := &memStore{m: map[string]*Case{}}
-	svc := &Service{Store: store, Unmasker: mapUnmasker(reverseMap), Now: time.Now}
+	pub := &fakePublisher{}
+	svc := &Service{Store: store, Unmasker: mapUnmasker(reverseMap), Events: pub, Now: time.Now}
+	defer func() {
+		// created, reviewed, then created again (same ID, JetStream drops the duplicate)
+		want := []string{"created:inc-1", "reviewed:", "created:inc-1"}
+		if len(pub.events) != len(want) {
+			t.Fatalf("events = %+v", pub.events)
+		}
+		for i, e := range pub.events {
+			if e.subject != contracts.SubjectCaseEvents || len(e.msgID) < len(want[i]) || e.msgID[:len(want[i])] != want[i] {
+				t.Errorf("event %d = %+v, want msgID prefix %q", i, e, want[i])
+			}
+		}
+	}()
 	ctx := context.Background()
 
 	if _, err := svc.FromTriageResult(ctx, triageResult(nil, contracts.TriageStatusLLMFailed)); err != nil {
