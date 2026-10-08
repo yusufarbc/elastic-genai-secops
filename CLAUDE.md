@@ -55,7 +55,7 @@ The platform is deployment-agnostic: profiles (`siem`, `ai-lite`, `full`) are in
 - **Services:** containerized microservices. Language: pick ONE primary backend language and justify in an ADR (Go preferred for operational services given performance and single-binary deploys; Python acceptable for the enrichment/LLM services where the ecosystem helps). Document the split.
 - **Messaging:** behind a `Bus` interface; NATS JetStream for local/on-prem, GCP Pub/Sub on GCP (ADR-017).
 - **Orchestration:** Kubernetes on GKE. Use HPA for autoscaling the **stateless** services. Elasticsearch runs **self-hosted via the ECK operator** (ADR-008). MVP: 3-node cluster (master quorum), StatefulSet + PVC, PodDisruptionBudget + anti-affinity, ILM from day one (14-day hot tier), snapshots to GCS. See ADR-009 / ADR-010. Note: only Elasticsearch is stateful; "always up" for it is an active state achieved by ILM + snapshots + resource sizing, not a passive one.
-- **CI/CD:** GitHub Actions. Two branches: `test` and `main`. Images pushed to a registry (GHCR or Artifact Registry). DevSecOps gates in pipeline (§7).
+- **CI/CD:** GitHub Actions. Two branches: `staging` (integration) and `production` (default, release); see ADR-024. Images pushed to a registry (GHCR or Artifact Registry). DevSecOps gates in pipeline (§7).
 
 ---
 
@@ -115,7 +115,7 @@ Log content can be controlled by an attacker. A log line saying "ignore previous
 ## 7. Engineering standards
 
 - **SOLID**, dependency inversion at service boundaries; the LLM provider, the queue, and the vector store each sit behind an interface.
-- **Branches:** `test` (integration) and `main` (release). PRs into `main` require green pipeline.
+- **Branches:** feature branch → PR into `staging` → PR from `staging` into `production`. Both require the green `Pipeline gate` check (ADR-024, docs/operations/ci-cd.md).
 - **CI/CD (GitHub Actions), DevSecOps gates:** lint → unit tests → SAST → dependency/SCA scan → container image build → image vulnerability scan → IaC scan → push to registry → deploy. Fail the pipeline on high-severity findings.
 - **Testing:** unit tests per service; contract tests at service boundaries; an integration test that drives a synthetic incident end-to-end with a **mocked LLM** (never hit the billed API in CI).
 - **Cost guardrails:** the queue is the cost gate. Implement a per-time-window budget/circuit-breaker in `llm-orchestrator`; when exceeded, queue incidents for human triage instead of calling the API.

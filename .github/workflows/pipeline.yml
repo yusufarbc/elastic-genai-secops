@@ -79,8 +79,7 @@ jobs:
       - name: golangci-lint (includes gosec)
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.5
-          args: --enable gosec
+          version: v2.14   # must be built with a Go >= go.mod's version; linters in .golangci.yml
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -155,7 +154,7 @@ jobs:
           TARGET: ${{ matrix.path }}
         run: |
           pkgs=(-e libs/py-common -e "integrations/outbound[dev]")
-          [ "$TARGET" = integrations/outbound ] || pkgs+=(-e "$TARGET[dev]")
+          [ "$TARGET" = integrations/outbound ] || pkgs+=(-e "${TARGET}[dev]")
           pip install pytest-cov "${pkgs[@]}"
       - name: pytest (coverage)
         working-directory: ${{ matrix.path }}
@@ -235,7 +234,7 @@ jobs:
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
+          build-mode: ${{ matrix.language == 'go' && 'autobuild' || 'none' }}
           queries: security-extended
       - uses: github/codeql-action/analyze@v4
         with:
@@ -328,6 +327,7 @@ jobs:
           severity: HIGH,CRITICAL
           format: sarif
           output: trivy-iac.sarif
+          limit-severities-for-sarif: true   # otherwise SARIF mode ignores the severity filter
           exit-code: "1"
       - uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-iac.sarif') != ''
@@ -378,6 +378,7 @@ jobs:
           ignore-unfixed: true
           format: sarif
           output: trivy-image.sarif
+          limit-severities-for-sarif: true
           exit-code: "1"
       - uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('trivy-image.sarif') != ''
@@ -438,7 +439,7 @@ jobs:
       - name: Wait for Elasticsearch and the bff
         run: |
           pw="$(grep '^ELASTIC_PASSWORD=' deploy/compose/.env | cut -d= -f2-)"
-          for i in $(seq 90); do
+          for _ in $(seq 90); do
             curl -skf -u "elastic:$pw" "https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" >/dev/null \
               && curl -sf http://localhost:8080/healthz >/dev/null && { echo "stack is up"; exit 0; }
             sleep 10

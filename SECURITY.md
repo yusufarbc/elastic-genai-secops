@@ -9,7 +9,7 @@ You will get an acknowledgement within a week.
 
 ## Supported versions
 
-Only the `main` branch receives fixes until the first tagged release.
+Only the `production` branch receives fixes until the first tagged release.
 
 ## Security model in short
 

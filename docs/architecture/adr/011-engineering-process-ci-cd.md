@@ -1,6 +1,6 @@
 # ADR-011: Engineering process: GitHub two-branch flow, DevSecOps CI/CD, GKE deploy
 
-**Status:** Accepted · **Date:** 2026-06-30
+**Status:** Accepted · **Date:** 2026-06-30 · Branch names superseded by [ADR-024](024-staging-production-pipeline.md)
 
 **Context:** SOLID design, CI/CD pipeline, DevSecOps cycle required.
 

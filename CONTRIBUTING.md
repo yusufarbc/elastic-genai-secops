@@ -44,8 +44,11 @@ python ../../tests/e2e/pipeline_test.py
 
 ## Pull requests
 
+- Branch from `staging` and open the pull request against `staging`; `production` only takes
+  promotion PRs from `staging` (see [docs/operations/ci-cd.md](docs/operations/ci-cd.md)).
 - One topic per pull request, with tests for new behaviour.
-- CI must be green: lint, unit tests, content and manifest validation, image build and Trivy scan.
+- The `Pipeline gate` check must be green: lint, tests, SAST, SCA, IaC, secret, image scans and the
+  end-to-end + DAST run.
 - Describe how you tested the change (unit, compose, Kubernetes), and what you did not test.
 
 By contributing you agree that your contributions are licensed under the [Apache License 2.0](LICENSE).
