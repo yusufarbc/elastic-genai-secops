@@ -1,46 +1,93 @@
+// case-service turns triage results into analyst cases and serves the case API.
 package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	case_ "esm/case-service/internal/case"
-	"esm/case-service/internal/unmasker"
+	"esm/services/case-service/internal/cases"
 
-	"go.uber.org/zap"
+	"esm/libs/go-common/bus"
+	"esm/libs/go-common/contracts"
+	"esm/libs/go-common/envx"
+	"esm/libs/go-common/es"
 )
 
 func main() {
-	log, _ := zap.NewProduction()
-	defer log.Sync() //nolint:errcheck
-
+	log := envx.Logger("case-service")
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Phase 1: no-op stubs. Phase 2 replaces with ES repository + HTTP unmasker + Pub/Sub.
-	_ = &noopRepository{}
-	_ = &noopUnmasker{}
+	esClient, err := es.FromEnv()
+	if err != nil {
+		log.Error("elasticsearch config", "error", err)
+		os.Exit(1)
+	}
+	store := &cases.ESStore{ES: esClient}
+	for {
+		if err = store.EnsureIndex(ctx); err == nil {
+			break
+		}
+		log.Warn("waiting for Elasticsearch", "error", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
+	}
 
-	log.Info("case-service starting")
-	<-ctx.Done()
+	svc := &cases.Service{
+		Store:    store,
+		Unmasker: cases.NewMaskingClient(envx.String("MASKING_SERVICE_URL", "http://masking-service:8001")),
+		Now:      func() time.Time { return time.Now().UTC() },
+	}
+
+	srv := &http.Server{
+		Addr:              envx.String("LISTEN_ADDR", ":8002"),
+		Handler:           cases.Handler(svc, log),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	go func() {
+		log.Info("case API listening", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("case API failed", "error", err)
+			stop()
+		}
+	}()
+
+	b, err := bus.FromEnv(ctx)
+	if err != nil {
+		log.Error("bus connect", "error", err)
+		os.Exit(1)
+	}
+	defer b.Close()
+
+	err = b.Subscribe(ctx, contracts.SubjectTriageResults, "case-service", func(ctx context.Context, data []byte) error {
+		var r contracts.TriageResult
+		if err := json.Unmarshal(data, &r); err != nil || r.IncidentID == "" {
+			log.Error("invalid triage result, dropping", "error", err)
+			return nil
+		}
+		c, err := svc.FromTriageResult(ctx, &r)
+		if err != nil {
+			return fmt.Errorf("create case %s: %w", r.IncidentID, err)
+		}
+		log.Info("case created", "case_id", c.ID, "triage_status", c.TriageStatus, "severity", c.Severity)
+		return nil
+	})
+	if err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("subscription stopped", "error", err)
+	}
+
+	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutdown)
 	log.Info("case-service stopped")
 }
-
-type noopRepository struct{}
-
-func (n *noopRepository) Create(_ context.Context, _ *case_.Case) error          { return nil }
-func (n *noopRepository) Update(_ context.Context, _ *case_.Case) error          { return nil }
-func (n *noopRepository) GetByID(_ context.Context, _ string) (*case_.Case, error) { return nil, nil }
-func (n *noopRepository) ListPendingReview(_ context.Context, _ int) ([]*case_.Case, error) {
-	return nil, nil
-}
-
-type noopUnmasker struct{}
-
-func (n *noopUnmasker) Unmask(_ context.Context, _, _ string) (string, error) { return "", nil }
-func (n *noopUnmasker) DeleteMap(_ context.Context, _ string) error            { return nil }
-
-var _ case_.Repository = (*noopRepository)(nil)
-var _ unmasker.Client = (*noopUnmasker)(nil)

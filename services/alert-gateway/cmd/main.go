@@ -1,74 +1,87 @@
+// alert-gateway correlates alerts from esm.alerts into incidents on esm.incidents.
 package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"esm/alert-gateway/internal/incident"
-	agpubsub "esm/alert-gateway/internal/pubsub"
+	"esm/services/alert-gateway/internal/incident"
 
-	"go.uber.org/zap"
+	"esm/libs/go-common/bus"
+	"esm/libs/go-common/contracts"
+	"esm/libs/go-common/envx"
 )
 
 func main() {
-	log, _ := zap.NewProduction()
-	defer log.Sync() //nolint:errcheck
-
+	log := envx.Logger("alert-gateway")
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	correlator := incident.NewCorrelator(10)
+	b, err := bus.FromEnv(ctx)
+	if err != nil {
+		log.Error("bus connect", "error", err)
+		os.Exit(1)
+	}
+	defer b.Close()
 
-	// Phase 1: no-op stubs. Phase 2 replaces with Pub/Sub adapters.
-	sub := &noopSubscriber{}
-	pub := &noopPublisher{}
+	threshold := envx.Int("CORRELATION_THRESHOLD", 5)
+	window := envx.Duration("CORRELATION_WINDOW", 10*time.Minute)
+	correlator := incident.NewCorrelator(threshold, window)
 
-	// Flush expired buckets every 30 s.
-	go func() {
-		t := time.NewTicker(30 * time.Second)
-		defer t.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				for _, inc := range correlator.Flush() {
-					inc.Status = incident.StatusPendingTriage
-					if err := pub.Publish(ctx, inc); err != nil {
-						log.Error("incident publish failed", zap.Error(err))
-					}
-				}
+	publish := func(ctx context.Context, inc *contracts.Incident) error {
+		if err := b.Publish(ctx, contracts.SubjectIncidents, inc.ID, inc); err != nil {
+			return err
+		}
+		log.Info("incident published", "incident_id", inc.ID, "alerts", inc.AlertCount, "risk", inc.RiskScore)
+		return nil
+	}
+
+	go flushLoop(ctx, log, correlator, publish)
+
+	log.Info("alert-gateway started", "threshold", threshold, "window", window.String())
+	err = b.Subscribe(ctx, contracts.SubjectAlerts, "alert-gateway", func(ctx context.Context, data []byte) error {
+		var a contracts.Alert
+		if err := json.Unmarshal(data, &a); err != nil {
+			log.Error("invalid alert message, dropping", "error", err)
+			return nil
+		}
+		if inc := correlator.Ingest(&a); inc != nil {
+			if err := publish(ctx, inc); err != nil {
+				return fmt.Errorf("publish incident: %w", err)
 			}
 		}
-	}()
-
-	log.Info("alert-gateway starting")
-	if err := sub.Subscribe(ctx, func(ctx context.Context, a *incident.Alert) error {
-		if inc := correlator.Ingest(a); inc != nil {
-			inc.Status = incident.StatusPendingTriage
-			return pub.Publish(ctx, inc)
-		}
 		return nil
-	}); err != nil && err != context.Canceled {
-		log.Fatal("alert-gateway exited with error", zap.Error(err))
+	})
+	if err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("alert-gateway stopped with error", "error", err)
+		os.Exit(1)
 	}
 	log.Info("alert-gateway stopped")
 }
 
-type noopSubscriber struct{}
-
-func (n *noopSubscriber) Subscribe(_ context.Context, _ func(context.Context, *incident.Alert) error) error {
-	return nil
+// flushLoop emits incidents whose correlation window expired before reaching the threshold.
+// Note: open buckets live in memory; alerts of an unfinished window are lost on restart
+// (they are acknowledged on ingest). Persisting buckets is tracked in ROADMAP.md.
+func flushLoop(ctx context.Context, log *slog.Logger, c *incident.Correlator, publish func(context.Context, *contracts.Incident) error) {
+	t := time.NewTicker(15 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			for _, inc := range c.Flush() {
+				if err := publish(ctx, inc); err != nil {
+					log.Error("incident publish failed", "incident_id", inc.ID, "error", err)
+				}
+			}
+		}
+	}
 }
-func (n *noopSubscriber) Close() error { return nil }
-
-type noopPublisher struct{}
-
-func (n *noopPublisher) Publish(_ context.Context, _ *incident.Incident) error { return nil }
-func (n *noopPublisher) Close() error                                           { return nil }
-
-var _ agpubsub.AlertSubscriber = (*noopSubscriber)(nil)
-var _ agpubsub.IncidentPublisher = (*noopPublisher)(nil)

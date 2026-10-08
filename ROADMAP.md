@@ -8,7 +8,7 @@ This repository consolidates three projects into one platform. Each phase ships 
 | 1 | One layout, one license (Apache-2.0), one name (`esm` prefix); duplicates removed; ADRs split per decision | Done |
 | 2 | Elastic content and first runnable profile: Logstash pipelines, ES roles/ILM/templates, detection rules in Kibana format, Sysmon config, compose `siem` profile, bare-metal installer rewrite | In review |
 | 3 | Deployment: remaining compose layers (`fleet`, `ai-lite`, `full`), kustomize overlays (lab, on-prem, GKE), templated Windows endpoint rollout | Planned |
-| 4 | Platform services: working builds, shared contracts, `Bus` (NATS / Pub/Sub), LLM providers (Ollama, OpenAI-compatible, Anthropic), case-service and bff APIs | Planned |
+| 4 | Platform services: working builds, shared contracts (`libs/`), NATS bus, LLM providers (Ollama, OpenAI-compatible, Anthropic), case-service and bff APIs, compose `platform.yml`, end-to-end test | In review |
 | 5 | MCP server rewrite: correct FastMCP API, stdio and authenticated HTTP, allow-listed read-only tools, optional Defender endpoint mode | Planned |
 | 6 | Outbound integrations: notifiers (Slack, Teams, email), ticketing (TheHive, Jira), threat intel (MISP, OpenCTI, AbuseIPDB) | Planned |
 | 7 | CI/CD at the root: per-service lint and tests, config validation, secret scanning, image and IaC scanning, docs deploy | Planned |
@@ -34,13 +34,15 @@ This repository consolidates three projects into one platform. Each phase ships 
 - Kubernetes manifests mix Elastic 8.12 and 8.13; align them with `ELASTIC_VERSION` (8.13.4).
 - Windows GPO scripts contain `ELK_SERVER_IP`, `DC_IP`, `PAN_FW_IP` and `\\FILESERVER` placeholders that must be set by hand; agent installers are no longer in git.
 
-### Phase 4: Platform services
+### Phase 4 follow-ups: platform services
 
-- Go `go.sum` files are empty; Python `pyproject.toml` files use a non-existent build backend.
-- Bus adapters are no-ops, so nothing flows end-to-end yet. `CI` is manual-only until builds pass.
-- Async tests in `llm-orchestrator` and `enrichment-service` call `asyncio.get_event_loop()`, which fails on Python 3.14 (they pass on 3.12); switch to `pytest-asyncio` or `asyncio.run`.
-- `alert-gateway` ignores `CORRELATION_THRESHOLD`; `BudgetTracker` never resets; the LLM audit log goes to stdout only.
-- `detection-service` reads `.alerts-security.alerts-*`; the rule IDs it should expect are now `esm-<id>` (see `content/detection-rules`).
+- GCP Pub/Sub bus adapter (`BUS_BACKEND=pubsub`) is not implemented; only NATS JetStream.
+- alert-gateway keeps open correlation windows in memory; alerts of an unfinished window are lost on restart.
+- No asset-criticality, GeoIP or threat-intel enrichers in enrichment-service yet.
+- Masking reverse maps have no TTL; access to masking-service is not restricted by network policy yet.
+- Real LLM providers have not been run against live endpoints (only mocked HTTP); `vertex` has no tests.
+- No triage UI; analysts use the bff JSON API (and Kibana for the underlying alerts).
+- Kubernetes manifests in `deploy/kubernetes/base/services` still use the old Pub/Sub settings; update them with the kustomize work in phase 3.
 
 ### Phase 5: MCP server
 

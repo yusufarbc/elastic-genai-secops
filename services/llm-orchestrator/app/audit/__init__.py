@@ -1,3 +1,3 @@
-from .logger import log_call
+from .logger import AUDIT_INDEX, AuditLogger
 
-__all__ = ["log_call"]
+__all__ = ["AUDIT_INDEX", "AuditLogger"]

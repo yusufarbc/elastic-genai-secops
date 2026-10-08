@@ -1,19 +1,25 @@
 [build-system]
 requires = ["setuptools>=70"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "masking-service"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.12"
 dependencies = [
+    "esm-common",
     "fastapi>=0.111",
-    "uvicorn[standard]>=0.30",
+    "uvicorn>=0.30",
     "pydantic>=2.7",
-    "google-cloud-pubsub>=2.21",
     "structlog>=24.2",
-    "elasticsearch[async]>=8.13",
+    "elasticsearch[async]>=8.13,<9",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.23"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.ruff]
 line-length = 100
@@ -22,11 +28,8 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.2",
-    "pytest-asyncio>=0.23",
-]
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
 
 [tool.mypy]
 python_version = "3.12"

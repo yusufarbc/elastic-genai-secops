@@ -1,12 +1,13 @@
-FROM golang:1.22-alpine AS builder
+# Build from the repository root: docker build -f services/bff/Dockerfile .
+FROM golang:1.22-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/bff ./cmd
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY libs/go-common libs/go-common
+COPY services/bff services/bff
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/bff ./services/bff/cmd
 
-FROM gcr.io/distroless/static-debian12
-COPY --from=builder /bin/bff /bff
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/bff /bff
 USER nonroot:nonroot
-EXPOSE 8080
 ENTRYPOINT ["/bff"]

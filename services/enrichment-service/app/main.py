@@ -1,61 +1,48 @@
-"""enrichment-service entry point.
-
-Subscribes to esm.incidents (Pub/Sub), runs the enrichment pipeline,
-and publishes EnrichedIncident to the masking-service via HTTP call.
-Pub/Sub adapter and masking-service client are injected at startup from env vars.
-"""
+"""enrichment-service: esm.incidents -> curate + mask -> esm.masked-incidents."""
 
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 import signal
 
-import structlog
+from esm_common import bus as busmod
+from esm_common.contracts import SUBJECT_INCIDENTS, SUBJECT_MASKED_INCIDENTS, Incident
+from esm_common.logging import configure
+from pydantic import ValidationError
 
-from app.enricher import EnrichmentPipeline
-from app.models import Incident
+from app.curate import build_masked_incident
+from app.masking import MaskingClient
 
-logger = structlog.get_logger(__name__)
-
-PUBSUB_PROJECT = os.getenv("PUBSUB_PROJECT", "esm-local")
-INCIDENTS_SUBSCRIPTION = os.getenv("INCIDENTS_SUBSCRIPTION", "esm.incidents.enrichment-sub")
-MASKING_SERVICE_URL = os.getenv("MASKING_SERVICE_URL", "http://masking-service:8001")
-
-
-async def handle_message(data: bytes, pipeline: EnrichmentPipeline) -> None:
-    try:
-        incident = Incident.model_validate_json(data)
-    except Exception:
-        logger.exception("invalid incident message, skipping")
-        return
-
-    log = logger.bind(incident_id=incident.id)
-    log.info("enriching incident")
-
-    enriched = await pipeline.run(incident)
-
-    # Phase 2: push enriched incident to masking-service via HTTP POST.
-    log.info("enrichment complete", summary=enriched.summary)
+log = configure("enrichment-service")
 
 
 async def main() -> None:
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(20))
-
-    pipeline = EnrichmentPipeline(enrichers=[])  # Phase 2 adds GeoIP, TI, asset enrichers
-
-    loop = asyncio.get_running_loop()
+    masking = MaskingClient(os.getenv("MASKING_SERVICE_URL", "http://masking-service:8001"))
+    bus = await busmod.from_env()
     stop = asyncio.Event()
-
+    loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
 
-    logger.info("enrichment-service starting", project=PUBSUB_PROJECT)
+    async def handle(data: bytes) -> None:
+        try:
+            incident = Incident.model_validate_json(data)
+        except ValidationError as exc:
+            log.error("invalid incident message, dropping", error=str(exc))
+            return
+        masked = await build_masked_incident(incident, masking.mask)
+        await bus.publish(SUBJECT_MASKED_INCIDENTS, masked, msg_id=incident.id)
+        log.info("masked incident published", incident_id=incident.id,
+                 alerts=incident.alert_count, hosts=len(masked.affected_hosts))
 
-    # Phase 1: stub loop — in Phase 2 this becomes a real Pub/Sub subscriber.
-    await stop.wait()
-    logger.info("enrichment-service stopped")
+    log.info("enrichment-service started")
+    try:
+        await bus.subscribe(SUBJECT_INCIDENTS, "enrichment-service", handle, stop)
+    finally:
+        await masking.close()
+        await bus.close()
+        log.info("enrichment-service stopped")
 
 
 if __name__ == "__main__":

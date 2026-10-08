@@ -1,0 +1,109 @@
+# Platform layer: the AI-assisted triage pipeline on top of the siem profile (ADR-019).
+#
+#   cd deploy/compose
+#   ./init-env.sh                                   (adds ESM_PLATFORM_PASSWORD to an existing .env)
+#   docker compose -f siem.yml -f platform.yml up -d --build
+#
+# Flow: Kibana alerts -> detection-service -> alert-gateway -> enrichment-service (+ masking-service)
+#       -> llm-orchestrator -> case-service -> bff (http://localhost:8080/api/cases)
+# LLM: LLM_PROVIDER=mock by default. See services/llm-orchestrator for ollama, openai-compatible,
+#      anthropic and vertex settings.
+
+x-platform-es: &platform-es
+  ELASTIC_URL: https://elasticsearch:9200
+  ELASTIC_USER: esm_platform
+  ELASTIC_PASSWORD: ${ESM_PLATFORM_PASSWORD:?set ESM_PLATFORM_PASSWORD in .env (run init-env)}
+  ELASTIC_CA_CERTS: /certs/ca/ca.crt
+  NATS_URL: nats://nats:4222
+
+x-platform-service: &platform-service
+  restart: unless-stopped
+  volumes:
+    - certs:/certs:ro
+  depends_on:
+    es-bootstrap: { condition: service_completed_successfully }
+    nats: { condition: service_healthy }
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8222/healthz | grep -q ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  masking-service:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/masking-service/Dockerfile }
+    image: esm/masking-service:dev
+    environment:
+      <<: *platform-es
+      PORT: "8001"
+
+  enrichment-service:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/enrichment-service/Dockerfile }
+    image: esm/enrichment-service:dev
+    environment:
+      <<: *platform-es
+      MASKING_SERVICE_URL: http://masking-service:8001
+
+  llm-orchestrator:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/llm-orchestrator/Dockerfile }
+    image: esm/llm-orchestrator:dev
+    environment:
+      <<: *platform-es
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_MODEL_ID: ${LLM_MODEL_ID:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MAX_TOKENS_PER_WINDOW: ${LLM_MAX_TOKENS_PER_WINDOW:-500000}
+      LLM_BUDGET_WINDOW_SECONDS: ${LLM_BUDGET_WINDOW_SECONDS:-3600}
+
+  detection-service:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/detection-service/Dockerfile }
+    image: esm/detection-service:dev
+    environment:
+      <<: *platform-es
+      DETECTION_POLL_INTERVAL: ${DETECTION_POLL_INTERVAL:-30s}
+      DETECTION_LOOKBACK: ${DETECTION_LOOKBACK:-1h}
+
+  alert-gateway:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/alert-gateway/Dockerfile }
+    image: esm/alert-gateway:dev
+    environment:
+      NATS_URL: nats://nats:4222
+      CORRELATION_THRESHOLD: ${CORRELATION_THRESHOLD:-5}
+      CORRELATION_WINDOW: ${CORRELATION_WINDOW:-5m}
+
+  case-service:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/case-service/Dockerfile }
+    image: esm/case-service:dev
+    environment:
+      <<: *platform-es
+      MASKING_SERVICE_URL: http://masking-service:8001
+      LISTEN_ADDR: ":8002"
+
+  bff:
+    build: { context: ../.., dockerfile: services/bff/Dockerfile }
+    image: esm/bff:dev
+    environment:
+      CASE_SERVICE_URL: http://case-service:8002
+      LISTEN_ADDR: ":8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - case-service
+    restart: unless-stopped
+
+volumes:
+  natsdata:

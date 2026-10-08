@@ -1,50 +1,46 @@
+// detection-service reads Kibana Security alerts and publishes them to esm.alerts.
 package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	internal "esm/detection-service/internal"
-	"esm/detection-service/internal/alert"
-	"esm/detection-service/internal/elastic"
+	internal "esm/services/detection-service/internal"
 
-	"go.uber.org/zap"
+	"esm/libs/go-common/bus"
+	"esm/libs/go-common/envx"
+	"esm/libs/go-common/es"
 )
 
 func main() {
-	log, _ := zap.NewProduction()
-	defer log.Sync() //nolint:errcheck
-
+	log := envx.Logger("detection-service")
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Phase 1: wire no-op stubs so the binary compiles and exits cleanly.
-	// Phase 2 replaces these with concrete ES + Pub/Sub adapters.
-	svc := internal.New(
-		&noopESClient{},
-		&noopPublisher{},
-		log,
-		30*time.Second,
-	)
+	esClient, err := es.FromEnv()
+	if err != nil {
+		log.Error("elasticsearch config", "error", err)
+		os.Exit(1)
+	}
+	b, err := bus.FromEnv(ctx)
+	if err != nil {
+		log.Error("bus connect", "error", err)
+		os.Exit(1)
+	}
+	defer b.Close()
 
-	log.Info("detection-service starting")
-	if err := svc.Run(ctx); err != nil && err != context.Canceled {
-		log.Fatal("detection-service exited with error", zap.Error(err))
+	svc := internal.New(esClient, b, log,
+		envx.Duration("DETECTION_POLL_INTERVAL", 30*time.Second),
+		envx.Duration("DETECTION_LOOKBACK", time.Hour),
+	)
+	log.Info("detection-service started")
+	if err := svc.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("detection-service stopped with error", "error", err)
+		os.Exit(1)
 	}
 	log.Info("detection-service stopped")
 }
-
-type noopESClient struct{}
-
-func (n *noopESClient) SearchAlerts(_ context.Context, _ string, _ int) ([]*elastic.RawAlert, error) {
-	return nil, nil
-}
-func (n *noopESClient) Close() error { return nil }
-
-type noopPublisher struct{}
-
-func (n *noopPublisher) Publish(_ context.Context, _ *alert.Alert) error { return nil }
-func (n *noopPublisher) Close() error                                     { return nil }

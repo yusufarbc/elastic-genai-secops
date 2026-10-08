@@ -1,18 +1,11 @@
-FROM python:3.12-slim AS base
+# Build from the repository root: docker build -f services/enrichment-service/Dockerfile .
+FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-
-FROM base AS builder
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir .
-
-FROM base
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY app ./app
-
-RUN useradd -r -s /bin/false appuser
-USER appuser
-
+COPY libs/py-common /build/py-common
+COPY services/enrichment-service/pyproject.toml /build/svc/pyproject.toml
+COPY services/enrichment-service/app /build/svc/app
+RUN --mount=type=cache,target=/root/.cache/pip     pip install --disable-pip-version-check --root-user-action=ignore /build/py-common /build/svc     && rm -rf /build
+RUN useradd --system --no-create-home --shell /usr/sbin/nologin app
+USER app
 CMD ["python", "-m", "app.main"]
