@@ -7,14 +7,21 @@ name: CI/CD · DevSecOps
 #               secret scan (gitleaks, full history)
 #   2 verify    unit tests (Go, Python), content + manifest validation,
 #               SAST (CodeQL, Semgrep), SCA (govulncheck, pip-audit, dependency review), IaC (Trivy)
-#   3 build     container images, image scan (Trivy), SBOM (Syft, CycloneDX)
-#   4 dynamic   end-to-end pipeline test on the compose stack + DAST (OWASP ZAP API scan on the bff)
+#   3 build     container images, image scan (Trivy), SBOM per image (Syft, CycloneDX)
+#   4 dynamic   end-to-end pipeline test on the compose stack + DAST (OWASP ZAP API scan on the bff);
+#               pull requests only: the production ruleset requires an up-to-date branch, so the
+#               merge result is the tree the PR already tested
 #   5 gate      single required status check for the branch rulesets
 #   6 release   push to staging/production only: publish to GHCR, cosign signature, SBOM and
 #               SLSA provenance attestations. There is no deploy target yet (docs/operations/ci-cd.md).
 #
 # The LLM is always mocked; the billed API is never called (design rule 7, ROADMAP.md).
 # Findings are uploaded as SARIF to the Security tab; HIGH/CRITICAL findings fail the pipeline.
+#
+# What runs when:
+#   pull_request   everything up to the gate
+#   push           quality, verify, build (images are rebuilt and re-scanned before release), release
+#   schedule       secrets, SAST, SCA, IaC, image scans: rules and advisories change, code does not
 
 on:
   pull_request:
@@ -22,7 +29,7 @@ on:
   push:
     branches: [staging, production]
   schedule:
-    - cron: "17 3 * * 1"   # weekly re-scan of production for newly published CVEs
+    - cron: "17 3 * * 1"   # weekly re-scan of production for new advisories and new SAST rules
   workflow_dispatch:
 
 permissions:
@@ -65,10 +72,13 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   lint:
     name: Lint · Go, Python, Dockerfiles, shell, workflows
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -84,7 +94,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: ruff
-        run: pip install ruff && ruff check libs/py-common integrations/outbound services/
+        run: pip install ruff==0.16.10 && ruff check libs/py-common integrations/outbound services/
       - name: hadolint
         # DL3042 (pip cache) is a false positive: the cache is a BuildKit cache mount, not an image layer
         run: |
@@ -107,6 +117,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: gitleaks
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
@@ -117,10 +128,13 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   test-go:
     name: Test · Go
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -136,6 +150,7 @@ jobs:
 
   test-python:
     name: Test · ${{ matrix.path }}
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -145,6 +160,8 @@ jobs:
                services/mcp-server, services/outbound-service, integrations/outbound]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -162,10 +179,13 @@ jobs:
 
   content:
     name: Validate · rules, compose, Kubernetes
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -227,6 +247,8 @@ jobs:
         language: [go, python, actions]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v7
         if: matrix.language == 'go'
         with:
@@ -249,12 +271,13 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: semgrep scan
         run: |
           docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.180.0 \
             semgrep scan --metrics off --quiet \
               --config p/default --config p/golang --config p/python \
-              --config p/dockerfile --config p/github-actions \
               --sarif-output semgrep.sarif
       - uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('semgrep.sarif') != ''
@@ -280,12 +303,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: govulncheck (reachable Go vulnerabilities)
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
           "$(go env GOPATH)/bin/govulncheck" ./...
       - uses: actions/setup-python@v7
         with:
@@ -293,7 +318,7 @@ jobs:
       - name: pip-audit (all Python services and libraries)
         run: |
           python -m venv /tmp/audit && . /tmp/audit/bin/activate
-          pip install -q --upgrade pip pip-audit
+          pip install -q --upgrade pip pip-audit==2.10.1
           pip install -q ./libs/py-common ./integrations/outbound services/masking-service \
             services/enrichment-service services/llm-orchestrator services/mcp-server services/outbound-service
           pip-audit --progress-spinner off --desc
@@ -305,6 +330,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
@@ -318,6 +345,8 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: trivy config (Dockerfiles, Kubernetes, compose)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -341,6 +370,7 @@ jobs:
   build:
     name: Build · ${{ matrix.service }}
     needs: [lint, test-go, test-python]
+    if: ${{ !cancelled() && !failure() }}   # lint/tests are skipped on the weekly scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -354,6 +384,8 @@ jobs:
                   outbound-service]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -400,30 +432,19 @@ jobs:
           path: image.tar.gz
           retention-days: 3
 
-  sbom-source:
-    name: SBOM · repository (CycloneDX)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          path: .
-          format: cyclonedx-json
-          output-file: sbom-source.cdx.json
-          artifact-name: sbom-source.cdx.json
-
   # ---------------------------------------------------------------------------------------------
   # 4 · dynamic: end-to-end + DAST on the running compose stack
   # ---------------------------------------------------------------------------------------------
   e2e-dast:
     name: E2E + DAST · compose stack
     needs: [build, content]
-    if: github.event_name != 'schedule'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v8
         with:
           pattern: image-*
@@ -455,7 +476,7 @@ jobs:
       - name: DAST · OWASP ZAP API scan (bff)
         run: |
           mkdir -p zap && cp services/bff/openapi.yaml zap/ && chmod -R 777 zap
-          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.17.0 \
             zap-api-scan.py -t /zap/wrk/openapi.yaml -f openapi -I \
               -J zap-bff.json -r zap-bff.html -w zap-bff.md
           cat zap/zap-bff.md >> "$GITHUB_STEP_SUMMARY"
@@ -490,7 +511,7 @@ jobs:
     name: Pipeline gate
     if: always()
     needs: [promotion, lint, secrets, test-go, test-python, content, sast-codeql, sast-semgrep,
-            sca, dependency-review, iac, build, sbom-source, e2e-dast]
+            sca, dependency-review, iac, build, e2e-dast]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

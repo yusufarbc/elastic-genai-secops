@@ -16,6 +16,7 @@ reproduce the checks locally. The decision record is
 - [Published images](#published-images)
 - [Repository settings the pipeline relies on](#repository-settings-the-pipeline-relies-on)
 - [Running the checks locally](#running-the-checks-locally)
+- [Pipeline hardening](#pipeline-hardening)
 - [Tuning a gate](#tuning-a-gate)
 - [Troubleshooting](#troubleshooting)
 - [Adding a service](#adding-a-service)
@@ -88,7 +89,6 @@ flowchart LR
         SCA[sca]
         DR[dependency-review]
         IAC[iac]
-        SB[sbom-source]
     end
     subgraph B[3 · build]
         BI[build × 9 services<br/>image scan · SBOM]
@@ -107,7 +107,8 @@ flowchart LR
 
 All quality and verify jobs start in parallel. Images are built only after lint and unit tests
 pass, and the end-to-end stage reuses those exact images. A pull request takes roughly 25–30
-minutes, most of it the end-to-end stage waiting for Kibana's 5-minute rule schedule.
+minutes, most of it the end-to-end stage waiting for Kibana's 5-minute rule schedule. A push
+(merge) takes about 10 minutes, because it skips the end-to-end stage.
 
 ## Stages in detail
 
@@ -132,11 +133,10 @@ minutes, most of it the end-to-end stage waiting for Kibana's 5-minute rule sche
 | `test-python` | `pytest` with coverage, one job per Python service and `integrations/outbound` | a failing test |
 | `content` | `build.py --check` for detection rules, `docker compose config`, kustomize + **kubeconform** against Kubernetes and ECK CRD schemas for the `lab`, `onprem`, `gke` overlays | invalid rules, compose files or manifests |
 | `sast-codeql` | **CodeQL** `security-extended` for Go, Python and GitHub Actions | alerts are reported in the Security tab (the job fails only on analysis errors) |
-| `sast-semgrep` | **Semgrep** rule packs `p/default`, `p/golang`, `p/python`, `p/dockerfile`, `p/github-actions` | an ERROR-severity finding |
+| `sast-semgrep` | **Semgrep** rule packs `p/default`, `p/golang`, `p/python` (Dockerfiles and workflows are covered by hadolint, Trivy, actionlint and CodeQL) | an ERROR-severity finding |
 | `sca` | **govulncheck** (Go vulnerabilities reachable from our code), **pip-audit** (every installed Python dependency) | a known vulnerability |
 | `dependency-review` | GitHub dependency review, pull requests only | the PR adds a dependency with a HIGH or CRITICAL advisory |
 | `iac` | **Trivy** misconfiguration scan of Dockerfiles, Kubernetes manifests and compose files | a HIGH or CRITICAL misconfiguration |
-| `sbom-source` | **Syft** SBOM of the repository (CycloneDX JSON) | — |
 
 ### 3 · Build
 
@@ -193,10 +193,22 @@ is where a deploy step and its secrets will go later.
 
 | Event | Stages |
 | --- | --- |
-| Pull request into `staging` or `production` | 0–5 |
-| Push to `staging` or `production` (a merged PR) | 1–6 (the guard applies to PRs only) |
-| Weekly, Monday 03:17 UTC, on `production` | 1–3 and 5: re-scans for newly published CVEs without the e2e stage |
+| Pull request into `staging` or `production` | 0–5: everything, including e2e and DAST |
+| Push to `staging` or `production` (a merged PR) | 1–3, 5, 6: no e2e/DAST; images are rebuilt, re-scanned, then released |
+| Weekly, Monday 03:17 UTC, on `production` | secrets, SAST, SCA, IaC, image scans and the gate |
 | Manual (`workflow_dispatch`) | 1–5 on the chosen branch; release never runs, it needs a `push` |
+
+Why not run everything everywhere:
+
+- **e2e + DAST only on pull requests.** The `production` ruleset requires the branch to be up to
+  date, so the commit that lands after a merge is exactly the tree the pull request tested.
+  Running the 25-minute stage again on the push would test the same code twice. A change reaches
+  `production` through two tested pull requests (into `staging`, then the promotion).
+- **Release rebuilds and re-scans.** The pushed images are built from the merged commit and scanned
+  again by Trivy right before they are signed: what is published is what was scanned.
+- **The weekly run re-scans, it does not re-test.** Lint, unit tests and manifest validation give
+  the same answer for unchanged code. Vulnerability databases, CodeQL queries and Semgrep rules do
+  change, so those scans run again.
 
 A newer commit on the same pull request cancels the run still in progress.
 
@@ -213,7 +225,7 @@ supply-chain practices: branch protection, token permissions, pinned dependencie
 | SAST, IaC, image CVEs, Scorecard | **Security → Code scanning**, one category per tool (`codeql-go`, `semgrep`, `trivy-iac`, `trivy-image-<service>`, `scorecard`). New findings are also annotated on the PR diff |
 | Dependency advisories | **Security → Dependabot** |
 | Go coverage, ZAP summary, published digests | The workflow run's **Summary** page |
-| SBOMs, coverage file, ZAP reports, compose logs | The workflow run's **Artifacts** (images and SBOMs for 3 days, coverage 7 days, e2e reports 14 days) |
+| Image SBOMs, coverage file, ZAP reports, compose logs | The workflow run's **Artifacts** (images and SBOMs for 3 days, coverage 7 days, e2e reports 14 days). A repository SBOM can be exported from **Insights → Dependency graph** |
 
 ## Published images
 
@@ -271,11 +283,26 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.75.
 
 # DAST against a running compose stack (bff on localhost:8080)
 mkdir -p zap && cp services/bff/openapi.yaml zap/ && chmod 777 zap
-docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.17.0 \
   zap-api-scan.py -t /zap/wrk/openapi.yaml -f openapi -r zap.html -I
 ```
 
 Unit tests and the end-to-end test are described in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+## Pipeline hardening
+
+The pipeline itself is part of the supply chain, so it follows the same rules it enforces:
+
+| Practice | How |
+| --- | --- |
+| Least-privilege token | The workflow default is `contents: read`; each job adds only what it needs (`security-events: write` for SARIF, `packages`/`id-token`/`attestations: write` only in `release`) |
+| No persisted credentials | Every checkout uses `persist-credentials: false`; no job pushes with git |
+| Pinned third-party actions | Pinned to a full commit SHA with the version as a comment; Dependabot updates them in a group |
+| Pinned tools | Scanner images and CLI tools use fixed versions (`gitleaks`, `semgrep`, `trivy`, `hadolint`, `actionlint`, ZAP, `govulncheck`, `pip-audit`, `ruff`), so a gate cannot change behaviour without a reviewed pull request |
+| Untrusted input stays data | Branch names and other event fields reach scripts through `env:`, never by `${{ }}` expansion inside `run:` |
+| Keyless signing | cosign uses the workflow's OIDC identity; there are no signing keys to leak |
+| Scanned artifact = released artifact | The release job pushes the image built and scanned in the same run |
+| Ephemeral secrets | The e2e stack generates fresh random credentials per run; no repository secrets are used |
 
 ## Tuning a gate
 

@@ -15,12 +15,13 @@ own: tests, static and dynamic security testing, and a traceable artifact.
 - One workflow (`.github/workflows/pipeline.yml`) runs on every PR and push to both branches:
   lint → secret scan → unit tests → content validation → SAST (CodeQL, Semgrep, gosec) →
   SCA (govulncheck, pip-audit, dependency review) → IaC (Trivy) → image build → image scan (Trivy)
-  → SBOM (Syft) → end-to-end test on the compose stack with the mock LLM → DAST (OWASP ZAP API scan)
+  → SBOM per image (Syft) → end-to-end test on the compose stack with the mock LLM → DAST (OWASP ZAP API scan)
   → gate → release (GHCR push, cosign signature, provenance and SBOM attestations).
 - A single `Pipeline gate` job is the only required status check, so rulesets do not need to track
   individual job names.
-- Full end-to-end and DAST run on every PR, not only before production: the repository is public, so
-  runner minutes are free, and finding a regression at the `staging` PR is cheaper than at promotion.
+- End-to-end and DAST run on every pull request (into `staging` and the promotion), not on the
+  push after a merge: `production` requires up-to-date branches, so the merged tree is the tested
+  one. Pushes rebuild, re-scan and release; the weekly run re-scans without re-testing.
 
 **Alternatives considered:**
 
