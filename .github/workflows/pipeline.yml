@@ -531,7 +531,9 @@ jobs:
   release:
     name: Release · ${{ matrix.service }}
     needs: [gate]
-    if: github.event_name == 'push' && needs.gate.result == 'success'
+    # !cancelled(): without a status function GitHub adds success(), which is false when any
+    # upstream job was skipped (e2e, guard and dependency review are skipped on push)
+    if: ${{ !cancelled() && github.event_name == 'push' && needs.gate.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ github.ref_name }}
