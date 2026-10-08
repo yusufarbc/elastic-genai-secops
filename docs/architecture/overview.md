@@ -38,7 +38,7 @@ flowchart LR
 
 ## Principles
 
-The rules in [CLAUDE.md](../../CLAUDE.md) shape every component:
+The [design rules](../../ROADMAP.md#design-rules) shape every component:
 
 - **Deterministic core.** Detection rules and correlation decide; the LLM only suggests. Every case
   waits for an analyst; nothing acts on LLM output ([ADR-002](adr/002-deterministic-core-human-in-the-loop.md)).

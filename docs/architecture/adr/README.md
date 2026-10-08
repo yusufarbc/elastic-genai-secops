@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Architecture Decision Record (ADR) log for the Elastic-SecOps-Mastery AI-assisted SOC/NOC platform. Each entry records the decision, the alternatives considered, the rationale, open risks, and the date. This is the companion to `CLAUDE.md`; `CLAUDE.md` states the rules, this file explains *why*.
+Architecture Decision Record (ADR) log for the Elastic-SecOps-Mastery AI-assisted SOC/NOC platform. Each entry records the decision, the alternatives considered, the rationale, open risks, and the date. The design rules in `ROADMAP.md` state the rules; this log explains *why*.
 
 Format per entry: **Decision · Status · Date · Context · Alternatives · Rationale · Risks / follow-ups.**
 

@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-06-30
 
-**Context:** CLAUDE.md §3 requires justifying the language split. Services divide into two groups: (a) high-throughput, long-running daemons where binary size, startup latency, and resource footprint matter (`detection-service`, `alert-gateway`, `case-service`, `response-service`, `bff`); (b) AI/ML pipeline services where the Python ecosystem (Pydantic, LangChain-style async, Vertex AI SDK, spaCy for NER/masking) gives a productivity advantage (`enrichment-service`, `masking-service`, `llm-orchestrator`).
+**Context:** The language split must be justified in an ADR. Services divide into two groups: (a) high-throughput, long-running daemons where binary size, startup latency, and resource footprint matter (`detection-service`, `alert-gateway`, `case-service`, `response-service`, `bff`); (b) AI/ML pipeline services where the Python ecosystem (Pydantic, LangChain-style async, Vertex AI SDK, spaCy for NER/masking) gives a productivity advantage (`enrichment-service`, `masking-service`, `llm-orchestrator`).
 
 **Alternatives considered:**
 
