@@ -1,0 +1,64 @@
+# Read-only, masked MCP access (ADR-022); every request needs the bearer token.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: mcp-server }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: mcp-server, app.kubernetes.io/component: platform }
+    spec:
+      serviceAccountName: esm-platform
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: mcp-server
+          image: esm/mcp-server
+          envFrom:
+            - configMapRef: { name: esm-platform-config }
+          env:
+            - name: ELASTIC_PASSWORD
+              valueFrom: { secretKeyRef: { name: esm-secrets, key: ESM_PLATFORM_PASSWORD } }
+            - name: MCP_TOKEN
+              valueFrom: { secretKeyRef: { name: esm-secrets, key: MCP_TOKEN, optional: true } }
+            - { name: HUNTS_FILE, value: /app/content/hunting/hunts.yml }
+          ports:
+            - { name: http, containerPort: 8090 }
+          readinessProbe:
+            tcpSocket: { port: 8090 }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: 8090 }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: es-ca, mountPath: /etc/esm/es-ca, readOnly: true }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: es-ca
+          secret:
+            secretName: esm-es-http-certs-public
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+spec:
+  selector: { app.kubernetes.io/name: mcp-server }
+  ports:
+    - { name: http, port: 8090, targetPort: 8090 }

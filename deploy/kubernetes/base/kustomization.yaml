@@ -1,0 +1,56 @@
+# Profile "siem" on ECK: Elasticsearch, Kibana, Logstash with every source pipeline,
+# plus a Job that loads ILM, templates, roles, users and detection rules.
+# Files outside this directory are read, so build with:
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/kubernetes/overlays/<name>
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: esm
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: elastic-secops-mastery
+resources:
+  - namespace.yaml
+  - elasticsearch.yaml
+  - kibana.yaml
+  - logstash.yaml
+  - bootstrap-job.yaml
+
+configMapGenerator:
+  # Logstash pipelines; keys are flattened, logstash.yaml maps them back to <source>/<file>
+  - name: esm-logstash-sources
+    files:
+      - syslog.conf=../../../integrations/sources/syslog/logstash.conf
+      - windows.conf=../../../integrations/sources/windows/logstash.conf
+      - windows-event-codes.yml=../../../integrations/sources/windows/translate/windows_event_codes.yml
+      - fortigate.conf=../../../integrations/sources/fortigate/logstash.conf
+      - paloalto-syslog.conf=../../../integrations/sources/paloalto/logstash-syslog.conf
+      - paloalto-beats.conf=../../../integrations/sources/paloalto/logstash-beats.conf
+      - kaspersky.conf=../../../integrations/sources/kaspersky/logstash.conf
+      - beats-health.conf=../../../integrations/sources/beats-health/logstash.conf
+  # Content loaded by content/bootstrap.sh; bootstrap-job.yaml rebuilds the directory layout
+  - name: esm-content
+    files:
+      - bootstrap.sh=../../../content/bootstrap.sh
+      - ilm-esm-logs.json=../../../content/elasticsearch/ilm/esm-logs.json
+      - ct-logs-custom.json=../../../content/elasticsearch/component-templates/logs@custom.json
+      - ct-metrics-custom.json=../../../content/elasticsearch/component-templates/metrics@custom.json
+      - role-logstash-writer.json=../../../content/elasticsearch/roles/logstash_writer.json
+      - role-esm-platform.json=../../../content/elasticsearch/roles/esm_platform.json
+      - rules.ndjson=../../../content/detection-rules/rules.ndjson
+  - name: esm-siem-config
+    literals:
+      - RETENTION_DAYS=90
+      - ES_NAMESPACE=default
+      - FORTIGATE_TZ=UTC
+      - PANOS_TZ=UTC
+
+secretGenerator:
+  # ECK reads pipelines.yml from a Secret (pipelinesRef)
+  - name: esm-logstash-pipelines
+    files:
+      - pipelines.yml=../../../integrations/sources/pipelines.yml
+
+# Fixed names: ECK custom resources (Logstash pipelinesRef, podTemplate env) are not rewritten
+# by kustomize's name-suffix references. Restart pods after changing generated config.
+generatorOptions:
+  disableNameSuffixHash: true

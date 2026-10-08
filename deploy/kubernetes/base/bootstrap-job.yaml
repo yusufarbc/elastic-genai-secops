@@ -1,0 +1,60 @@
+# Runs content/bootstrap.sh: ILM, component templates, roles, the logstash_ingest and esm_platform
+# users, and the detection rules (after Kibana is up). Idempotent. Jobs are immutable, so delete
+# it before re-applying changed content:  kubectl -n esm delete job esm-bootstrap --ignore-not-found
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: esm-bootstrap
+spec:
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: bootstrap
+          # Any image with bash and curl works; this one is already pulled for Elasticsearch.
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+          command: ["bash", "/content/bootstrap.sh"]
+          env:
+            - { name: ES_URL, value: "https://esm-es-http:9200" }
+            - { name: ES_USER, value: elastic }
+            - name: ES_PASSWORD
+              valueFrom: { secretKeyRef: { name: esm-es-elastic-user, key: elastic } }
+            - { name: ES_CA_CERT, value: /etc/esm/es-ca/ca.crt }
+            - { name: KIBANA_URL, value: "http://esm-kb-http:5601" }
+            - name: RETENTION_DAYS
+              valueFrom: { configMapKeyRef: { name: esm-siem-config, key: RETENTION_DAYS } }
+            - name: LOGSTASH_INGEST_PASSWORD
+              valueFrom: { secretKeyRef: { name: esm-secrets, key: LOGSTASH_INGEST_PASSWORD } }
+            - name: ESM_PLATFORM_PASSWORD
+              valueFrom: { secretKeyRef: { name: esm-secrets, key: ESM_PLATFORM_PASSWORD } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 256Mi }
+          volumeMounts:
+            - { name: content, mountPath: /content, readOnly: true }
+            - { name: es-ca, mountPath: /etc/esm/es-ca, readOnly: true }
+      volumes:
+        - name: content
+          configMap:
+            name: esm-content
+            # Rebuild the content/ layout that bootstrap.sh expects
+            items:
+              - { key: bootstrap.sh, path: bootstrap.sh }
+              - { key: ilm-esm-logs.json, path: elasticsearch/ilm/esm-logs.json }
+              - { key: ct-logs-custom.json, path: elasticsearch/component-templates/logs@custom.json }
+              - { key: ct-metrics-custom.json, path: elasticsearch/component-templates/metrics@custom.json }
+              - { key: role-logstash-writer.json, path: elasticsearch/roles/logstash_writer.json }
+              - { key: role-esm-platform.json, path: elasticsearch/roles/esm_platform.json }
+              - { key: rules.ndjson, path: detection-rules/rules.ndjson }
+        - name: es-ca
+          secret:
+            secretName: esm-es-http-certs-public

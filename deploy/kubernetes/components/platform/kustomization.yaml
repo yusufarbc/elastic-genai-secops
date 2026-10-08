@@ -1,0 +1,69 @@
+# The AI-assisted triage pipeline (docs/genai/triage-pipeline.md) as an optional component.
+# Overlays add it with `components: [../../components/platform]`.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - nats.yaml
+  - serviceaccount.yaml
+  - detection-service.yaml
+  - alert-gateway.yaml
+  - enrichment-service.yaml
+  - masking-service.yaml
+  - llm-orchestrator.yaml
+  - case-service.yaml
+  - bff.yaml
+  - mcp-server.yaml
+
+configMapGenerator:
+  - name: esm-platform-config
+    literals:
+      - ELASTIC_URL=https://esm-es-http:9200
+      - ELASTIC_USER=esm_platform
+      - ELASTIC_CA_CERTS=/etc/esm/es-ca/ca.crt
+      - NATS_URL=nats://nats:4222
+      - BUS_BACKEND=nats
+      - MASKING_SERVICE_URL=http://masking-service:8001
+      - CASE_SERVICE_URL=http://case-service:8002
+      - CASE_API_URL=http://bff:8080/api
+      - DETECTION_POLL_INTERVAL=30s
+      - DETECTION_LOOKBACK=1h
+      - CORRELATION_THRESHOLD=5
+      - CORRELATION_WINDOW=5m
+      - LLM_PROVIDER=mock
+      - LLM_MODEL_ID=
+      - LLM_BASE_URL=
+      - LLM_MAX_TOKENS_PER_WINDOW=500000
+      - LLM_BUDGET_WINDOW_SECONDS=3600
+      - MCP_TRANSPORT=http
+      - MCP_ALLOWED_HOSTS=localhost:*,127.0.0.1:*,mcp-server:*,mcp-server.esm.svc:*
+
+images:
+  - name: esm/detection-service
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/detection-service
+    newTag: latest
+  - name: esm/alert-gateway
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/alert-gateway
+    newTag: latest
+  - name: esm/enrichment-service
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/enrichment-service
+    newTag: latest
+  - name: esm/masking-service
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/masking-service
+    newTag: latest
+  - name: esm/llm-orchestrator
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/llm-orchestrator
+    newTag: latest
+  - name: esm/case-service
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/case-service
+    newTag: latest
+  - name: esm/bff
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/bff
+    newTag: latest
+  - name: esm/mcp-server
+    newName: ghcr.io/yusufarbc/elastic-secops-mastery/mcp-server
+    newTag: latest
+
+# Fixed names: ECK custom resources (Logstash pipelinesRef, podTemplate env) are not rewritten
+# by kustomize's name-suffix references. Restart pods after changing generated config.
+generatorOptions:
+  disableNameSuffixHash: true

@@ -7,7 +7,8 @@ This repository consolidates three projects into one platform. Each phase ships 
 | 0 | History cleanup: removed committed installers (~118 MB) and scrubbed a hard-coded password, internal IPs and host names from all commits | Done |
 | 1 | One layout, one license (Apache-2.0), one name (`esm` prefix); duplicates removed; ADRs split per decision | Done |
 | 2 | Elastic content and first runnable profile: Logstash pipelines, ES roles/ILM/templates, detection rules in Kibana format, Sysmon config, compose `siem` profile, bare-metal installer rewrite | In review |
-| 3 | Deployment: remaining compose layers (`fleet`, `ai-lite`, `full`), kustomize overlays (lab, on-prem, GKE), templated Windows endpoint rollout | Planned |
+| 3a | Kubernetes: ECK 3.5 + kustomize (`base`, `components/platform`, `components/production`, overlays `lab`/`onprem`/`gke`), bootstrap Job, GCS snapshots | In review |
+| 3b | Fleet / Elastic Agent (compose layer and ECK `Agent`), templated Windows endpoint rollout | Planned |
 | 4 | Platform services: working builds, shared contracts (`libs/`), NATS bus, LLM providers (Ollama, OpenAI-compatible, Anthropic), case-service and bff APIs, compose `platform.yml`, end-to-end test | In review |
 | 5 | MCP server rewrite: read-only masked tools, allow-listed hunts, stdio and bearer-token HTTP, optional Defender status (ADR-022) | In review |
 | 6 | Outbound integrations: notifiers (Slack, Teams, email), ticketing (TheHive, Jira), threat intel (MISP, OpenCTI, AbuseIPDB) | Planned |
@@ -23,16 +24,14 @@ This repository consolidates three projects into one platform. Each phase ships 
 - Beats → Logstash traffic is not encrypted (`ssl.enabled: false`); add an optional TLS input.
 - Winlogbeat and Filebeat `panw` ingest pipelines must be loaded by hand once per version (`setup --pipelines`).
 
-### Phase 3: Deployment
+### Phase 3 follow-ups: deployment
 
-- `deploy/compose/docker-compose.yml` (platform dev stack) runs Elasticsearch with security disabled and duplicates the `siem` services; rebuild it as layers on top of `siem.yml`.
-- No Fleet / Elastic Agent path yet (the invalid Fleet policy template was removed in phase 2).
-- `deploy/kubernetes/base/eck/logstash.yaml` declares its Service with `apiVersion: networking.k8s.io/v1` (must be `v1`), targets the `default` namespace and an old cluster name; it should use the ECK `Logstash` resource and `integrations/sources`.
-- `deploy/kubernetes/base/eck/fleet-server.yaml` binds `cluster-admin` and runs as root.
-- `deploy/kubernetes/overlays/gke/gcs-snapshot-repo.yaml` contains a second YAML document without `apiVersion`/`kind`, so `kubectl apply` rejects it.
-- case-service has no Kubernetes Service, so `CASE_SERVICE_URL` does not resolve.
-- Kubernetes manifests mix Elastic 8.12 and 8.13; align them with `ELASTIC_VERSION` (8.13.4).
+- No Fleet / Elastic Agent path yet (phase 3b).
 - Windows GPO scripts contain `ELK_SERVER_IP`, `DC_IP`, `PAN_FW_IP` and `\\FILESERVER` placeholders that must be set by hand; agent installers are no longer in git.
+- Kubernetes: only `lab` was deployed and tested (kind, Kubernetes 1.37, ECK 3.5); `onprem` and `gke` are schema-validated but not deployed. No NetworkPolicies, no Ingress for Kibana, no HPA.
+- Logstash's monitoring API runs without TLS inside the cluster (ECK 3.5 + Logstash 8.13 TLS API returns empty replies).
+- ILM deletes on the hot tier do not wait for a snapshot (`wait_for_snapshot`); the gke overlay snapshots daily and keeps 14 days hot.
+- The bare-metal installer has not been run on a real Ubuntu 22.04 host yet.
 
 ### Phase 4 follow-ups: platform services
 
