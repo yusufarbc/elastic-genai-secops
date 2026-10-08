@@ -1,0 +1,527 @@
+# Detection rules: source of truth.
+#
+# Build the Kibana import file with:   python content/detection-rules/build.py
+# Output: content/detection-rules/rules.ndjson (committed; imported by content/bootstrap.sh)
+#
+# Fields per rule:
+#   id, name, description, severity (low|medium|high|critical), index (list), query (KQL)
+#   threshold: {field, value, window}  -> threshold rule; otherwise a query rule
+#   enabled (default true), mitre: [{technique, name, tactic}], false_positives, playbook, references
+#
+# Index patterns follow the data streams written by integrations/sources:
+#   logs-windows-*, logs-fortigate-*, logs-paloalto-*
+# WEB-* rules expect web server logs (Elastic Agent nginx/apache/iis integrations or Filebeat);
+# no web source ships with this repository yet, so they are disabled by default.
+
+windows_index: &windows ["logs-windows-*"]
+firewall_index: &firewall ["logs-fortigate-*", "logs-paloalto-*"]
+web_index: &web ["logs-nginx.access-*", "logs-apache.access-*", "logs-iis.access-*", "filebeat-*"]
+
+rules:
+  - id: WIN-001
+    name: Office application spawned a command or script interpreter
+    description: A Microsoft Office application (Word, Excel, PowerPoint, Outlook) started a command shell or script host. This usually means a malicious macro is executing.
+    severity: high
+    index: *windows
+    query: |-
+      event.category: "process" and event.type: "start" and
+      process.parent.name: ("WINWORD.EXE" or "EXCEL.EXE" or "POWERPNT.EXE" or "OUTLOOK.EXE") and
+      process.name: ("cmd.exe" or "powershell.exe" or "pwsh.exe" or "cscript.exe" or "wscript.exe" or "mshta.exe")
+    mitre:
+      - {technique: T1059, name: Command and Scripting Interpreter, tactic: execution}
+    false_positives:
+      - Office add-ins or business automation that legitimately launch scripts.
+    playbook:
+      - Identify the document that was opened and where it came from (email, download, share).
+      - Review the child process command line for download cradles or encoded commands.
+      - Isolate the host if the command line is malicious and scan it.
+      - Check whether the same parent/child pair appeared on other hosts in the last 48 hours.
+
+  - id: WIN-002
+    name: Web browser spawned a command or script interpreter
+    description: A web browser started a command shell or script host, which can indicate browser exploitation or execution of a downloaded payload.
+    severity: high
+    index: *windows
+    query: |-
+      event.category: "process" and event.type: "start" and
+      process.parent.name: ("iexplore.exe" or "chrome.exe" or "firefox.exe" or "msedge.exe") and
+      process.name: ("cmd.exe" or "powershell.exe" or "pwsh.exe" or "cscript.exe" or "wscript.exe" or "mshta.exe")
+    mitre:
+      - {technique: T1059, name: Command and Scripting Interpreter, tactic: execution}
+      - {technique: T1189, name: Drive-by Compromise, tactic: initial-access}
+    false_positives:
+      - Developer tools or browser extensions that launch helper processes.
+    playbook:
+      - Review browser history and recent downloads on the host.
+      - Inspect installed extensions and remove unknown ones.
+      - Patch the browser and run a full malware scan.
+      - Look for the same behaviour on other endpoints.
+
+  - id: WIN-003
+    name: PowerShell started by Windows Script Host
+    description: wscript.exe or cscript.exe started PowerShell, a common chain in script-based malware droppers.
+    severity: medium
+    index: *windows
+    query: |-
+      event.category: "process" and event.type: "start" and
+      process.parent.name: ("wscript.exe" or "cscript.exe") and process.name: ("powershell.exe" or "pwsh.exe")
+    mitre:
+      - {technique: T1059.001, name: PowerShell, tactic: execution}
+    false_positives:
+      - Legacy logon or administration scripts written in VBScript/JScript that call PowerShell.
+    playbook:
+      - Find the script file that was executed and review its content.
+      - Review the PowerShell command line and any network connections it made.
+      - If unexpected, isolate the host and collect the script for analysis.
+
+  - id: WIN-004
+    name: Possible LSASS credential dumping
+    description: Access to the LSASS process memory or a known dumping technique (procdump against lsass, comsvcs.dll MiniDump) was observed.
+    severity: high
+    index: *windows
+    query: |-
+      (event.code: "4656" and winlog.event_data.ObjectName: *lsass.exe) or
+      (event.code: "10" and winlog.event_data.TargetImage: *lsass.exe and not process.name: ("MsMpEng.exe" or "svchost.exe" or "wininit.exe" or "csrss.exe")) or
+      (process.name: "procdump.exe" and process.command_line: *lsass*) or
+      (process.name: "rundll32.exe" and process.command_line: *comsvcs.dll*)
+    mitre:
+      - {technique: T1003.001, name: "OS Credential Dumping: LSASS Memory", tactic: credential-access}
+    false_positives:
+      - Security products and backup agents that read LSASS memory. Add them to the exclusion list.
+    playbook:
+      - Identify the process and user that accessed LSASS.
+      - Treat credentials of every account logged on to the host as compromised; reset them.
+      - Isolate the host and look for lateral movement from it.
+
+  - id: WIN-005
+    name: RDP brute force from a single source
+    description: Five or more failed Remote Desktop logons (logon type 10) from the same source address within ten minutes.
+    severity: medium
+    index: *windows
+    query: |-
+      event.code: "4625" and winlog.event_data.LogonType: "10"
+    threshold: {field: source.ip, value: 5, window: 10m}
+    mitre:
+      - {technique: T1110.001, name: "Brute Force: Password Guessing", tactic: credential-access}
+    false_positives:
+      - A user repeatedly typing a wrong password, or a saved stale credential.
+    playbook:
+      - Check whether the source address is internal or internet-facing.
+      - Look for a successful logon (4624) from the same source after the failures.
+      - Block the source at the firewall and review account lockout policy.
+
+  - id: WIN-006
+    name: UAC bypass through fodhelper.exe
+    description: fodhelper.exe was started by explorer.exe, a well-known technique to bypass User Account Control.
+    severity: high
+    index: *windows
+    query: |-
+      event.category: "process" and event.type: "start" and
+      process.parent.name: "explorer.exe" and process.name: "fodhelper.exe"
+    mitre:
+      - {technique: T1548.002, name: Bypass User Account Control, tactic: privilege-escalation}
+    false_positives:
+      - A user opening "Manage optional features" from Settings, which also starts fodhelper.exe.
+    playbook:
+      - Check HKCU\Software\Classes\ms-settings\shell\open\command for a planted command.
+      - Review child processes of fodhelper.exe.
+      - Isolate the host if an elevated shell was obtained.
+
+  - id: WIN-007
+    name: Sticky Keys or accessibility feature backdoor
+    description: winlogon.exe started a command shell, which happens when an accessibility binary (sethc.exe, utilman.exe) was replaced to get a SYSTEM shell from the logon screen.
+    severity: critical
+    index: *windows
+    query: |-
+      event.category: "process" and event.type: "start" and
+      process.parent.name: "winlogon.exe" and process.name: ("cmd.exe" or "powershell.exe" or "pwsh.exe")
+    mitre:
+      - {technique: T1546.008, name: Accessibility Features, tactic: privilege-escalation}
+    false_positives:
+      - None expected.
+    playbook:
+      - Verify the hashes of sethc.exe, utilman.exe, osk.exe and related binaries against known-good versions.
+      - Check the Image File Execution Options debugger registry values for these binaries.
+      - Isolate the host; treat it as fully compromised.
+
+  - id: WIN-008
+    name: Registry Run key modified for persistence
+    description: A value under a Run or RunOnce registry key was created or changed, a common persistence mechanism.
+    severity: medium
+    index: *windows
+    query: |-
+      (event.code: "4657" and winlog.event_data.ObjectName: *\\CurrentVersion\\Run*) or
+      (event.code: "13" and registry.path: *\\CurrentVersion\\Run*)
+    mitre:
+      - {technique: T1547.001, name: "Registry Run Keys / Startup Folder", tactic: persistence}
+    false_positives:
+      - Software installers and updaters that register themselves at startup.
+    playbook:
+      - Review the value name and the binary it points to.
+      - Check the signature and reputation of that binary.
+      - Remove the value and the binary if unauthorized.
+
+  - id: WIN-009
+    name: Process executed from a network share
+    description: A process was started from a UNC path, which can indicate lateral movement or payload staging over SMB.
+    severity: high
+    index: *windows
+    query: |-
+      event.category: "process" and event.type: "start" and process.executable: \\\\*
+    mitre:
+      - {technique: T1021.002, name: SMB/Windows Admin Shares, tactic: lateral-movement}
+    false_positives:
+      - Logon scripts and software deployed from NETLOGON/SYSVOL or internal file servers. Exclude those paths.
+    playbook:
+      - Identify the share and the account used to run the binary.
+      - Review the binary on the share and who placed it there.
+      - Look for the same binary executed on other hosts.
+
+  - id: WIN-010
+    name: PowerShell encoded command
+    description: PowerShell was started with an encoded command, often used to hide malicious scripts.
+    severity: medium
+    index: *windows
+    query: |-
+      process.name: ("powershell.exe" or "pwsh.exe") and process.command_line: (*-EncodedCommand* or *-enc\ * or *-ec\ *)
+    mitre:
+      - {technique: T1027, name: Obfuscated Files or Information, tactic: defense-evasion}
+      - {technique: T1059.001, name: PowerShell, tactic: execution}
+    false_positives:
+      - Management tools (SCCM, monitoring agents) that pass scripts as encoded commands.
+    playbook:
+      - Decode the Base64 payload (UTF-16LE) and review it.
+      - Check the parent process and user.
+      - Search for the same payload across hosts.
+
+  - id: WIN-011
+    name: New Windows service installed
+    description: A new service was installed (System event 7045 or Security event 4697). Attackers use services for persistence and remote execution.
+    severity: medium
+    index: *windows
+    query: |-
+      event.code: ("7045" or "4697")
+    mitre:
+      - {technique: T1543.003, name: Windows Service, tactic: persistence}
+    false_positives:
+      - Software installation and updates. Expect noise during patch windows.
+    playbook:
+      - Review the service name, binary path and account.
+      - Check the binary signature and location (services in user-writable paths are suspicious).
+      - Correlate with software change records.
+
+  - id: WIN-012
+    name: Scheduled task created
+    description: A scheduled task was created (Security event 4698), which attackers use for persistence and delayed execution.
+    severity: medium
+    index: *windows
+    query: |-
+      event.code: "4698"
+    mitre:
+      - {technique: T1053.005, name: Scheduled Task, tactic: persistence}
+    false_positives:
+      - Software installers and administrators creating maintenance tasks.
+    playbook:
+      - Review the task XML (action, trigger, run-as account).
+      - Check the referenced binary or script.
+      - Delete the task if unauthorized and investigate the creator.
+
+  - id: WIN-013
+    name: PowerShell downloading content from the internet
+    description: PowerShell was used with a web download function, a typical way to fetch tools onto a compromised host.
+    severity: high
+    index: *windows
+    query: |-
+      process.name: ("powershell.exe" or "pwsh.exe") and
+      process.command_line: (*Invoke-WebRequest* or *iwr\ * or *Net.WebClient* or *DownloadString* or *DownloadFile* or *Start-BitsTransfer*)
+    mitre:
+      - {technique: T1105, name: Ingress Tool Transfer, tactic: command-and-control}
+    false_positives:
+      - Administrative scripts that download installers from internal or vendor sites.
+    playbook:
+      - Extract the URL from the command line and check its reputation.
+      - Find the downloaded file on disk and analyse it.
+      - Block the domain if malicious.
+
+  - id: WIN-014
+    name: WMIC remote process creation
+    description: wmic was used with "process call create", which can start processes on remote hosts.
+    severity: high
+    index: *windows
+    query: |-
+      process.name: "WMIC.exe" and process.command_line: (*process*call*create*)
+    mitre:
+      - {technique: T1047, name: Windows Management Instrumentation, tactic: execution}
+    false_positives:
+      - Administrative scripts using WMIC for remote management.
+    playbook:
+      - Identify the target host (/node:) and the command started.
+      - Check the account used and whether it is expected to administer that host.
+      - Investigate the target host for follow-up activity.
+
+  - id: WIN-015
+    name: Remote service creation with sc.exe
+    description: sc.exe was used against a remote host (UNC name in the command line), a common lateral movement technique.
+    severity: high
+    index: *windows
+    query: |-
+      process.name: "sc.exe" and process.command_line: *\\\\* and process.command_line: (*create* or *config* or *start*)
+    mitre:
+      - {technique: T1569.002, name: Service Execution, tactic: execution}
+      - {technique: T1021.002, name: SMB/Windows Admin Shares, tactic: lateral-movement}
+    false_positives:
+      - Administrators managing services on remote servers.
+    playbook:
+      - Identify the remote host and the service binary.
+      - Check the account used and the source host.
+      - Investigate the remote host for the created service (event 7045).
+
+  - id: WIN-016
+    name: Windows event log cleared
+    description: The Security log (event 1102) or another event log (System event 104) was cleared, often to hide attacker activity.
+    severity: high
+    index: *windows
+    query: |-
+      event.code: ("1102" or "104")
+    mitre:
+      - {technique: T1070.001, name: Clear Windows Event Logs, tactic: defense-evasion}
+    false_positives:
+      - Administrators clearing logs during troubleshooting (rare; should be documented).
+    playbook:
+      - Identify the account that cleared the log.
+      - Review activity on the host shortly before the log was cleared using other sources (Sysmon, EDR, network).
+      - Treat the host as suspicious until explained.
+
+  - id: WIN-017
+    name: Microsoft Defender protection disabled
+    description: Defender real-time protection was turned off or Defender settings were changed through PowerShell or Defender events.
+    severity: high
+    index: *windows
+    query: |-
+      process.command_line: (*DisableRealtimeMonitoring* or *DisableBehaviorMonitoring* or *Add-MpPreference*-ExclusionPath*) or
+      (event.provider: "Microsoft-Windows-Windows Defender" and event.code: ("5001" or "5010" or "5012"))
+    mitre:
+      - {technique: T1562.001, name: Disable or Modify Tools, tactic: defense-evasion}
+    false_positives:
+      - Approved exclusions added by administrators or deployment tools.
+    playbook:
+      - Re-enable protection and check exclusions with Get-MpPreference.
+      - Identify the account and process that made the change.
+      - Run a full scan once protection is restored.
+
+  - id: FW-001
+    name: Traffic from bogon or reserved source addresses
+    description: The firewall logged traffic whose source address is in reserved or documentation ranges that should never appear as a source, which suggests spoofing.
+    severity: low
+    index: *firewall
+    query: |-
+      source.ip: ("0.0.0.0/8" or "127.0.0.0/8" or "169.254.0.0/16" or "192.0.2.0/24" or "198.51.100.0/24" or "203.0.113.0/24" or "224.0.0.0/4" or "240.0.0.0/4")
+    mitre:
+      - {technique: T1595, name: Active Scanning, tactic: reconnaissance}
+    false_positives:
+      - Misconfigured internal devices (for example APIPA addresses on a LAN interface).
+    playbook:
+      - Identify the ingress interface or zone.
+      - Confirm anti-spoofing / uRPF protection is enabled on internet-facing interfaces.
+
+  - id: FW-002
+    name: Many blocked connections from one source (possible port scan)
+    description: Twenty or more connections from the same source address were blocked by the firewall within one minute.
+    severity: medium
+    index: *firewall
+    query: |-
+      event.action: ("deny" or "drop" or "block" or "reset-both" or "reset-client" or "reset-server")
+    threshold: {field: source.ip, value: 20, window: 1m}
+    mitre:
+      - {technique: T1595, name: Active Scanning, tactic: reconnaissance}
+    false_positives:
+      - Internet background noise against public addresses; vulnerability scanners you operate.
+    playbook:
+      - Check whether the source is internal (higher priority) or external.
+      - For internal sources, identify the host and process generating the connections.
+      - Consider blocking persistent external scanners.
+
+  - id: FW-003
+    name: Allowed outbound traffic to a high-risk country
+    description: An internal host made an allowed connection to a destination located in a country on the watch list.
+    severity: medium
+    index: *firewall
+    query: |-
+      source.ip: ("10.0.0.0/8" or "172.16.0.0/12" or "192.168.0.0/16") and
+      destination.geo.country_iso_code: ("KP" or "IR" or "SY" or "RU") and
+      not event.action: ("deny" or "drop" or "block" or "reset-both" or "reset-client" or "reset-server")
+    mitre:
+      - {technique: T1071, name: Application Layer Protocol, tactic: command-and-control}
+    false_positives:
+      - Legitimate business with these regions, CDNs with mis-geolocated addresses. Adjust the country list to your policy.
+    playbook:
+      - Identify the internal host, process and destination service.
+      - Check the destination address reputation.
+      - Block the destination if the traffic has no business justification.
+
+  - id: FW-004
+    name: Allowed outbound SMB, RDP or WinRM to the internet
+    description: An internal host made an allowed connection to an internet address on SMB, RDP or WinRM ports, which should normally be blocked.
+    severity: high
+    index: *firewall
+    query: |-
+      destination.port: (445 or 3389 or 5985 or 5986) and
+      source.ip: ("10.0.0.0/8" or "172.16.0.0/12" or "192.168.0.0/16") and
+      not destination.ip: ("10.0.0.0/8" or "172.16.0.0/12" or "192.168.0.0/16") and
+      not event.action: ("deny" or "drop" or "block" or "reset-both" or "reset-client" or "reset-server")
+    mitre:
+      - {technique: T1021.001, name: Remote Desktop Protocol, tactic: lateral-movement}
+      - {technique: T1048, name: Exfiltration Over Alternative Protocol, tactic: exfiltration}
+    false_positives:
+      - Approved remote administration of cloud servers. Add their addresses to an exception list.
+    playbook:
+      - Identify the internal host and the destination.
+      - Add an egress deny rule for these ports if one is missing.
+      - Investigate the host if the connection was not expected.
+
+  - id: WEB-001
+    name: Large HTTP POST request (possible exfiltration)
+    description: An HTTP POST request with a body larger than 1 MB was observed.
+    severity: medium
+    enabled: false
+    index: *web
+    query: |-
+      http.request.method: "POST" and http.request.body.bytes > 1000000
+    mitre:
+      - {technique: T1048, name: Exfiltration Over Alternative Protocol, tactic: exfiltration}
+    false_positives:
+      - File upload features of the application.
+    playbook:
+      - Identify the client and the endpoint receiving the upload.
+      - Check whether the endpoint is expected to accept large uploads.
+
+  - id: WEB-002
+    name: Possible web shell command parameter
+    description: A request carried a query parameter commonly used by web shells to run commands (cmd=, exec=, execute=).
+    severity: high
+    enabled: false
+    index: *web
+    query: |-
+      url.query: (*cmd=* or *exec=* or *execute=*)
+    mitre:
+      - {technique: T1505.003, name: Web Shell, tactic: persistence}
+    false_positives:
+      - Applications that legitimately use these parameter names.
+    playbook:
+      - Find the requested file on the web server and review it.
+      - Review other requests from the same client.
+      - Remove the web shell and rotate credentials stored on the server.
+
+  - id: WEB-003
+    name: Request for a known web shell file name
+    description: A request targeted a file name commonly used for web shells.
+    severity: high
+    enabled: false
+    index: *web
+    query: |-
+      url.path: (*shell.jsp or *shell.aspx or *cmd.jsp or *cmd.aspx or *backdoor.php or *webshell.php or *c99.php or *r57.php)
+    mitre:
+      - {technique: T1505.003, name: Web Shell, tactic: persistence}
+    false_positives:
+      - Scanners probing for these files (check the response status code).
+    playbook:
+      - Check the HTTP status; a 200 response means the file exists.
+      - If present, isolate the server and review the file.
+
+  - id: WEB-004
+    name: Vulnerability scanner user agent
+    description: A request used the user agent of a known scanning tool.
+    severity: low
+    enabled: false
+    index: *web
+    query: |-
+      user_agent.original: (*sqlmap* or *Nikto* or *nikto* or *Acunetix* or *DirBuster* or *Nuclei* or *nuclei* or *Nmap*)
+    mitre:
+      - {technique: T1595.002, name: "Active Scanning: Vulnerability Scanning", tactic: reconnaissance}
+    false_positives:
+      - Authorized scans by your own security team.
+    playbook:
+      - Confirm whether the scan was authorized.
+      - Block the source if not.
+
+  - id: WEB-005
+    name: Possible SQL injection attempt
+    description: A request query string contained a typical SQL injection pattern.
+    severity: high
+    enabled: false
+    index: *web
+    query: |-
+      url.query: (*UNION*SELECT* or *union*select* or *%27%20OR%20* or *%27%20or%20* or *SLEEP%28* or *sleep%28*)
+    mitre:
+      - {technique: T1190, name: Exploit Public-Facing Application, tactic: initial-access}
+    false_positives:
+      - Search forms where users type SQL-like text.
+    playbook:
+      - Review the response code and size for signs of success.
+      - Check the application and database logs for errors around the same time.
+      - Block the client and fix input validation.
+
+  - id: WEB-006
+    name: Path traversal attempt
+    description: A request path contained a directory traversal sequence.
+    severity: medium
+    enabled: false
+    index: *web
+    query: |-
+      url.original: (*../* or *..%2f* or *..%2F* or *%2e%2e%2f* or *%2E%2E%2F*)
+    mitre:
+      - {technique: T1190, name: Exploit Public-Facing Application, tactic: initial-access}
+    false_positives:
+      - Rare; some clients send relative paths.
+    playbook:
+      - Check the response status and size.
+      - Review which file the request tried to reach.
+
+  - id: WEB-007
+    name: Many HTTP errors from one client
+    description: Ten or more 401/403/404/500 responses to the same client within one minute, typical of content discovery or brute force.
+    severity: low
+    enabled: false
+    index: *web
+    query: |-
+      http.response.status_code: (401 or 403 or 404 or 500)
+    threshold: {field: source.ip, value: 10, window: 1m}
+    mitre:
+      - {technique: T1595.003, name: "Active Scanning: Wordlist Scanning", tactic: reconnaissance}
+    false_positives:
+      - Broken links, monitoring probes, misconfigured clients.
+    playbook:
+      - Review the requested paths to tell scanning from broken links.
+      - Rate-limit or block the client if scanning.
+
+  - id: WEB-008
+    name: Unusual HTTP method
+    description: A request used a method that is rarely needed (TRACE, TRACK, DEBUG, PROPFIND, OPTIONS).
+    severity: low
+    enabled: false
+    index: *web
+    query: |-
+      http.request.method: ("OPTIONS" or "TRACE" or "TRACK" or "DEBUG" or "PROPFIND")
+    mitre:
+      - {technique: T1595, name: Active Scanning, tactic: reconnaissance}
+    false_positives:
+      - CORS preflight requests use OPTIONS; WebDAV clients use PROPFIND.
+    playbook:
+      - Disable unneeded methods on the web server.
+
+  - id: WEB-009
+    name: Web login brute force
+    description: Five or more failed logins (HTTP 401 on a login path) from the same client within five minutes.
+    severity: medium
+    enabled: false
+    index: *web
+    query: |-
+      url.path: *login* and http.response.status_code: 401
+    threshold: {field: source.ip, value: 5, window: 5m}
+    mitre:
+      - {technique: T1110.001, name: "Brute Force: Password Guessing", tactic: credential-access}
+    false_positives:
+      - Users mistyping passwords; expired credentials in scripts.
+    playbook:
+      - Check for a successful login from the same client after the failures.
+      - Enforce account lockout or rate limiting on the login endpoint.

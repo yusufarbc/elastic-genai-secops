@@ -1,0 +1,171 @@
+# Profile "siem": Elasticsearch + Kibana + Logstash with every source pipeline and the detection rules.
+#
+#   cd deploy/compose
+#   ./init-env.sh            (or .\init-env.ps1 on Windows) - creates .env with random secrets
+#   docker compose -f siem.yml up -d
+#
+# Kibana: http://localhost:5601 (user "elastic", password ELASTIC_PASSWORD from .env)
+# Log source ports: see integrations/sources/README.md
+
+name: esm-siem
+
+services:
+  # Creates a CA and the Elasticsearch certificate once (kept in the "certs" volume)
+  certs:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    user: "0"
+    volumes:
+      - certs:/certs
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -e
+        if [ ! -f /certs/ca/ca.crt ]; then
+          bin/elasticsearch-certutil ca --silent --pem -out /certs/ca.zip
+          unzip -q -o /certs/ca.zip -d /certs
+        fi
+        if [ ! -f /certs/elasticsearch/elasticsearch.crt ]; then
+          printf 'instances:\n  - name: elasticsearch\n    dns: [elasticsearch, localhost]\n    ip: [127.0.0.1]\n' > /certs/instances.yml
+          bin/elasticsearch-certutil cert --silent --pem --in /certs/instances.yml -out /certs/certs.zip --ca-cert /certs/ca/ca.crt --ca-key /certs/ca/ca.key
+          unzip -q -o /certs/certs.zip -d /certs
+        fi
+        chown -R 1000:0 /certs
+        find /certs -type d -exec chmod 750 {} +
+        find /certs -type f -exec chmod 640 {} +
+        echo "[certs] ready"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    depends_on:
+      certs: { condition: service_completed_successfully }
+    environment:
+      - node.name=elasticsearch
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in .env (run init-env)}
+      - xpack.license.self_generated.type=basic
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/elasticsearch/elasticsearch.key
+      - xpack.security.http.ssl.certificate=certs/elasticsearch/elasticsearch.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/elasticsearch/elasticsearch.key
+      - xpack.security.transport.ssl.certificate=certs/elasticsearch/elasticsearch.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - ES_JAVA_OPTS=-Xms${ES_HEAP:-1g} -Xmx${ES_HEAP:-1g}
+    volumes:
+      - certs:/usr/share/elasticsearch/config/certs:ro
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "127.0.0.1:9200:9200"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  # Loads ILM, component templates, roles and the logstash_ingest / kibana_system passwords
+  es-bootstrap:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+    environment:
+      - ES_URL=https://elasticsearch:9200
+      - ES_PASSWORD=${ELASTIC_PASSWORD}
+      - ES_CA_CERT=/certs/ca/ca.crt
+      - RETENTION_DAYS=${RETENTION_DAYS:-90}
+      - LOGSTASH_INGEST_PASSWORD=${LOGSTASH_INGEST_PASSWORD:?set LOGSTASH_INGEST_PASSWORD in .env}
+      - KIBANA_SYSTEM_PASSWORD=${KIBANA_SYSTEM_PASSWORD:?set KIBANA_SYSTEM_PASSWORD in .env}
+    volumes:
+      - certs:/certs:ro
+      - ../../content:/content:ro
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -e
+        bash /content/bootstrap.sh
+        curl -sS -f --cacert /certs/ca/ca.crt -u "elastic:$${ES_PASSWORD}" -H 'Content-Type: application/json' \
+          -X POST https://elasticsearch:9200/_security/user/kibana_system/_password \
+          -d "{\"password\":\"$${KIBANA_SYSTEM_PASSWORD}\"}" >/dev/null
+        echo "[bootstrap] kibana_system password set"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION:-8.13.4}
+    depends_on:
+      es-bootstrap: { condition: service_completed_successfully }
+    environment:
+      - SERVERNAME=kibana
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=config/certs/ca/ca.crt
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:?set KIBANA_ENCRYPTION_KEY in .env}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+    volumes:
+      - certs:/usr/share/kibana/config/certs:ro
+      - kibanadata:/usr/share/kibana/data
+    ports:
+      - "${KIBANA_BIND:-127.0.0.1}:5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -I http://localhost:5601/api/status | grep -q 'HTTP/1.1 [24]0[0-9]'"]
+      interval: 10s
+      timeout: 10s
+      retries: 90
+
+  # Imports the detection rules once Kibana is up
+  rules:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION:-8.13.4}
+    depends_on:
+      kibana: { condition: service_healthy }
+    environment:
+      - ES_URL=https://elasticsearch:9200
+      - ES_PASSWORD=${ELASTIC_PASSWORD}
+      - ES_CA_CERT=/certs/ca/ca.crt
+      - RETENTION_DAYS=${RETENTION_DAYS:-90}
+      - KIBANA_URL=http://kibana:5601
+    volumes:
+      - certs:/certs:ro
+      - ../../content:/content:ro
+    entrypoint: ["bash", "/content/bootstrap.sh"]
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION:-8.13.4}
+    depends_on:
+      es-bootstrap: { condition: service_completed_successfully }
+    environment:
+      - ES_HOSTS=https://elasticsearch:9200
+      - ES_USER=logstash_ingest
+      - ES_PW=${LOGSTASH_INGEST_PASSWORD}
+      - ES_CA_CERT=/usr/share/logstash/certs/ca/ca.crt
+      - ES_NAMESPACE=${ES_NAMESPACE:-default}
+      - LS_SOURCES_DIR=/etc/logstash/conf.d
+      - FORTIGATE_TZ=${FORTIGATE_TZ:-UTC}
+      - PANOS_TZ=${PANOS_TZ:-UTC}
+      - LS_JAVA_OPTS=-Xms${LS_HEAP:-512m} -Xmx${LS_HEAP:-512m}
+      - XPACK_MONITORING_ENABLED=false
+    volumes:
+      - certs:/usr/share/logstash/certs:ro
+      - ../../integrations/sources:/etc/logstash/conf.d:ro
+      - ../../integrations/sources/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+    ports:
+      - "5044:5044"            # paloalto (Filebeat panw)
+      - "5045:5045"            # windows (Winlogbeat, WEF)
+      - "5046:5046"            # beats-health (Metricbeat, Heartbeat)
+      - "5047:5047"            # kaspersky
+      - "5514:5514/udp"        # syslog RFC3164
+      - "5514:5514/tcp"
+      - "5515:5515/tcp"        # syslog RFC5424
+      - "5516:5516/udp"        # fortigate
+      - "5516:5516/tcp"
+      - "5517:5517/udp"        # paloalto syslog
+      - "5517:5517/tcp"
+    restart: unless-stopped
+
+volumes:
+  certs:
+  esdata:
+  kibanadata:

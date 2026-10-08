@@ -1,21 +1,27 @@
+# Winlogbeat configuration for Windows endpoints (deployed by deploy/endpoints/windows/gpo/winlogbeat.bat)
+# Replace ELK_SERVER_IP with the Logstash host. Winlogbeat must be the same version as the Elastic Stack.
+#
+# Before the first events arrive, load Winlogbeat's ingest pipelines once (see integrations/sources/README.md):
+#   winlogbeat.exe setup --pipelines -E output.logstash.enabled=false -E output.elasticsearch.hosts=[...]
+
 winlogbeat.event_logs:
-  - name: Application
-    ignore_missing_channel: true
-
-  - name: System
-    ignore_missing_channel: true
-
   - name: Security
     ignore_missing_channel: true
-
+  - name: System
+    ignore_missing_channel: true
+  - name: Application
+    ignore_missing_channel: true
   - name: Microsoft-Windows-Sysmon/Operational
     ignore_missing_channel: true
-
   - name: Windows PowerShell
     ignore_missing_channel: true
-
   - name: Microsoft-Windows-PowerShell/Operational
     ignore_missing_channel: true
+  - name: Microsoft-Windows-Windows Defender/Operational
+    ignore_missing_channel: true
+  # On a Windows Event Collector (WEF), add the forwarded channel instead of the local ones:
+  # - name: ForwardedEvents
+  #   ignore_missing_channel: true
 
 output.logstash:
   hosts: ["ELK_SERVER_IP:5045"]

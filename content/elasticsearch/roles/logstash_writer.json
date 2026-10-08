@@ -1,0 +1,13 @@
+{
+  "cluster": ["monitor"],
+  "indices": [
+    {
+      "names": ["logs-*-*", "metrics-*-*"],
+      "privileges": ["auto_configure", "create_doc", "view_index_metadata"]
+    }
+  ],
+  "metadata": {
+    "description": "Used by Logstash pipelines in integrations/sources to write to logs-* and metrics-* data streams",
+    "managed_by": "content/bootstrap.sh"
+  }
+}

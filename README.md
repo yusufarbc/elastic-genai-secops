@@ -21,7 +21,7 @@ flowchart LR
     subgraph Sources
         W[Windows<br/>Winlogbeat · WEF · Sysmon]
         F[Firewalls<br/>FortiGate · Palo Alto]
-        O[Kaspersky · Libraesva<br/>Syslog]
+        O[Kaspersky<br/>Syslog]
     end
     Sources --> LS[Logstash]
     LS --> ES[(Elasticsearch)]
@@ -46,9 +46,10 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 
 | Axis | Options | Status |
 | --- | --- | --- |
-| Profile | `siem` · `ai-lite` · `full` | Planned (Phase 3) |
-| Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available; Logstash pipeline issues fixed in Phase 2 |
-| Target: Docker Compose | `deploy/compose/` | Service builds fixed in Phase 4; layered profiles in Phase 3 |
+| Profile | `siem` | Available (Compose, bare metal) |
+| Profile | `ai-lite` · `full` | Planned (Phases 3–4) |
+| Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available (`siem`) |
+| Target: Docker Compose | `deploy/compose/siem.yml` | Available (`siem`); platform services in Phase 4 |
 | Target: Kubernetes (ECK) | `deploy/kubernetes/` lab, on-prem, GKE | Manifests available; kustomize overlays in Phase 3 |
 | LLM provider | `mock` · `vertex` | Available |
 | LLM provider | `ollama` · `openai-compatible` · `anthropic` | Planned (Phase 4) |
@@ -59,31 +60,36 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | Path | Contents |
 | --- | --- |
 | [`services/`](services) | Platform microservices: Go (detection-service, alert-gateway, case-service, bff) and Python (enrichment-service, masking-service, llm-orchestrator, mcp-server) |
-| [`content/`](content) | Elastic content: detection rules, Fleet policies (templates, ILM, dashboards and hunting queries in later phases) |
+| [`content/`](content) | Elastic content loaded by `content/bootstrap.sh`: detection rules, ILM policy, component templates, roles |
 | [`integrations/sources/`](integrations/sources) | One folder per log source: Logstash pipeline and collector configuration |
 | [`deploy/`](deploy) | Deployment targets: `compose/`, `kubernetes/`, `baremetal/ubuntu/`, `endpoints/windows/` (GPO agent rollout) |
 | [`docs/`](docs) | Guides, component references, deep dives and architecture decisions |
 
 ## Quick start
 
-**Single-host SIEM on Ubuntu 22.04** (Elasticsearch, Kibana, Logstash):
+**SIEM with Docker Compose** (Elasticsearch, Kibana, Logstash, detection rules; needs ~4 GB RAM for Docker):
 
 ```bash
 git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
-cd Elastic-SecOps-Mastery
+cd Elastic-SecOps-Mastery/deploy/compose
+./init-env.sh                      # Windows: .\init-env.ps1  (creates .env with random passwords)
+docker compose -f siem.yml up -d
+```
+
+Open <http://localhost:5601> and log in as `elastic` with `ELASTIC_PASSWORD` from `deploy/compose/.env`.
+Send a test event with `logger -n localhost -P 5514 -d "hello esm"` and find it in Discover (`logs-*`).
+Then connect real sources: [integrations/sources](integrations/sources/README.md).
+
+**SIEM on a single Ubuntu 22.04 host:**
+
+```bash
 sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 ```
 
 See [docs/deployment/baremetal.md](docs/deployment/baremetal.md).
 
-**Platform development stack** (Docker Compose, mocked LLM). The service images do not build yet
-(empty `go.sum` files, invalid Python build backend); this is fixed in Phase 4:
-
-```bash
-cp .env.example .env
-make up      # Kibana on :5601, BFF on :8080
-make test    # unit tests
-```
+**Platform development stack** (AI services, mocked LLM): the service images do not build yet
+(empty `go.sum` files, invalid Python build backend); this is fixed in Phase 4.
 
 **Kubernetes with ECK:** see [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md).
 
