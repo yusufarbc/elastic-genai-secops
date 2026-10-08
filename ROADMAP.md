@@ -40,7 +40,7 @@ This repository consolidates three projects into one platform. Each phase ships 
 - alert-gateway keeps open correlation windows in memory; alerts of an unfinished window are lost on restart.
 - No asset-criticality, GeoIP or threat-intel enrichers in enrichment-service yet.
 - Masking reverse maps have no TTL; access to masking-service is not restricted by network policy yet.
-- Real LLM providers have not been run against live endpoints (only mocked HTTP); `vertex` has no tests.
+- `openai-compatible` is verified end to end with DeepSeek (`deepseek-flash`); `ollama` and `anthropic` only against mocked HTTP; `vertex` has no tests.
 - No triage UI; analysts use the bff JSON API (and Kibana for the underlying alerts).
 - Kubernetes manifests in `deploy/kubernetes/base/services` still use the old Pub/Sub settings; update them with the kustomize work in phase 3.
 

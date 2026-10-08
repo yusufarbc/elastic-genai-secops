@@ -52,7 +52,7 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available (`siem`) |
 | Target: Docker Compose | `deploy/compose/siem.yml`, `platform.yml` | Available |
 | Target: Kubernetes (ECK) | `deploy/kubernetes/` lab, on-prem, GKE | Manifests available; kustomize overlays in Phase 3 |
-| LLM provider | `mock` · `ollama` · `openai-compatible` · `anthropic` · `vertex` | Available: `mock` tested end to end; `ollama`, `openai-compatible`, `anthropic` tested against mocked HTTP only; `vertex` untested |
+| LLM provider | `mock` · `ollama` · `openai-compatible` · `anthropic` · `vertex` | Available: `mock` and `openai-compatible` (DeepSeek) tested end to end; `ollama`, `anthropic` tested against mocked HTTP only; `vertex` untested |
 | Message bus | NATS JetStream | Available |
 | Message bus | GCP Pub/Sub | Planned |
 | MCP access | read-only, masked tools; stdio or bearer-token HTTP | Available |

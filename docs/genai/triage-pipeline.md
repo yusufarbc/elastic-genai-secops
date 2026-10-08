@@ -54,6 +54,7 @@ Set these in `deploy/compose/.env` and recreate `llm-orchestrator`
 | `mock` (default) | – | – | – |
 | `ollama` | `llama3.1:8b`, `qwen2.5:7b` | `http://ollama:11434` | – |
 | `openai-compatible` | `gpt-4o-mini`, or a vLLM / LM Studio model | `https://api.openai.com/v1` | required for OpenAI |
+| `openai-compatible` | `deepseek-flash` (DeepSeek, tested end to end) | set `https://api.deepseek.com` | required |
 | `anthropic` | `claude-haiku-4-5` | `https://api.anthropic.com` | required |
 | `vertex` | `gemini-2.5-flash` | – (uses `GCP_PROJECT`, `VERTEX_LOCATION`) | Workload Identity |
 
