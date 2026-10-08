@@ -1,0 +1,15 @@
+name: Feature request
+description: Propose an integration, detection rule or platform feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Check ROADMAP.md first; mention how it keeps the rules in CLAUDE.md (masked LLM input, no automatic actions, Basic license).

@@ -230,7 +230,11 @@ KBN_KEYSTORE=/usr/share/kibana/bin/kibana-keystore
 printf '%s' "${KIBANA_SYSTEM_PASSWORD}" | "${KBN_KEYSTORE}" add elasticsearch.password --stdin --force
 chown root:kibana /etc/kibana/kibana.keystore; chmod 0660 /etc/kibana/kibana.keystore
 
-set -a; . "${LS_ENV}"; set +a
+set -a
+# LS_ENV is generated above
+# shellcheck disable=SC1090
+. "${LS_ENV}"
+set +a
 LS_KEYSTORE=(/usr/share/logstash/bin/logstash-keystore --path.settings /etc/logstash)
 if ! "${LS_KEYSTORE[@]}" list >/dev/null 2>&1; then
   rm -f /etc/logstash/logstash.keystore

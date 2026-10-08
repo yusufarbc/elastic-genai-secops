@@ -1,8 +1,10 @@
 # Elastic-SecOps-Mastery
 
+[![CI](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/ci.yml/badge.svg)](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/ci.yml)
+[![Security](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/security.yml/badge.svg)](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/security.yml)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Elastic Stack](https://img.shields.io/badge/Elastic%20Stack-8.13-005571?logo=elasticsearch)
-![Go](https://img.shields.io/badge/Go-1.22-00ADD8?logo=go)
+![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)
 
 An open, AI-assisted Security Operations platform built on the **Basic-licensed Elastic Stack**.
@@ -10,9 +12,10 @@ Logs are collected and parsed with Logstash and Beats, Elastic detection rules r
 correlated into incidents, personal data is masked, and an LLM suggests a triage decision that an
 analyst reviews. The LLM never acts on its own.
 
-> **Status:** this repository consolidates three earlier projects (an Ubuntu ELK installer,
-> an MCP-based GenAI SOC prototype, and the Vigil AI-SOC platform). The consolidation runs in phases;
-> see [ROADMAP.md](ROADMAP.md) for what works today and what is still in progress.
+> **Status:** early release. The SIEM, the AI triage pipeline, the MCP server and the outbound
+> integrations run end to end; see [ROADMAP.md](ROADMAP.md) for what is verified, known limitations
+> and planned features. The project consolidates three earlier projects (an Ubuntu ELK installer,
+> an MCP-based GenAI SOC prototype and the Vigil AI-SOC platform).
 
 ## Architecture
 
@@ -33,7 +36,8 @@ flowchart LR
     MS -->|esm.masked-incidents| LO[llm-orchestrator]
     LO -->|esm.triage-decisions| CS[case-service]
     CS --> BFF[bff / analyst]
-    MCP[mcp-server] -.->|read-only tools| ES
+    CS -->|esm.case-events| OB[outbound-service<br/>notify · tickets]
+    MCP[mcp-server] -.->|read-only, masked| BFF
 ```
 
 Design rules (see [CLAUDE.md](CLAUDE.md) and the [ADRs](docs/architecture/adr/README.md)):
@@ -47,7 +51,7 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | Axis | Options | Status |
 | --- | --- | --- |
 | Profile | `siem` | Available (Compose, bare metal) |
-| Profile | `siem` + platform layer (AI triage pipeline) | Available (Compose) |
+| Profile | `siem` + platform layer (AI triage pipeline) | Available (Compose, Kubernetes) |
 | Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available (`siem`) |
 | Target: Docker Compose | `deploy/compose/siem.yml`, `platform.yml` | Available |
 | Target: Kubernetes (ECK 3.5 + kustomize) | `deploy/kubernetes/overlays/` lab · onprem · gke | Available: `lab` tested end to end on kind; `onprem`, `gke` schema-validated |
@@ -94,7 +98,7 @@ sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 
 See [docs/deployment/baremetal.md](docs/deployment/baremetal.md).
 
-**AI triage pipeline** on top of the SIEM (mock LLM by default; see [docs/genai/triage-pipeline.md](docs/genai/triage-pipeline.md)):
+**AI triage pipeline** on top of the SIEM (mock LLM by default, ~6 GB RAM for Docker; see [docs/genai/triage-pipeline.md](docs/genai/triage-pipeline.md)):
 
 ```bash
 cd deploy/compose
@@ -121,11 +125,17 @@ See [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md) for ECK insta
 - Architecture: [overview](docs/architecture/overview.md) · [decision records](docs/architecture/adr/README.md)
 - Deployment: [bare metal](docs/deployment/baremetal.md) · [Kubernetes](docs/deployment/kubernetes.md)
 - Components: [Elasticsearch](docs/components/elasticsearch.md) · [Kibana](docs/components/kibana.md) · [Logstash](docs/components/logstash.md)
-- Integrations: [log sources](integrations/sources/README.md) · [notifications, ticketing, threat intel](docs/integrations/outbound.md) · [Windows audit policy](docs/integrations/windows-audit-policy.md)
+- Integrations: [log sources](integrations/sources/README.md) · [Windows endpoints (GPO)](docs/integrations/windows-endpoints.md) · [Windows audit policy](docs/integrations/windows-audit-policy.md) · [notifications, ticketing, threat intel](docs/integrations/outbound.md)
 - GenAI: [triage pipeline](docs/genai/triage-pipeline.md) · [MCP server](docs/genai/mcp-server.md)
 - Operations: [troubleshooting](docs/operations/troubleshooting.md)
 - Deep dives: [history](docs/deep-dives/history-and-evolution.md) · [Elasticsearch internals](docs/deep-dives/elasticsearch-internals.md) · [ingestion](docs/deep-dives/ingestion-architecture.md) · [Kibana internals](docs/deep-dives/kibana-internals.md) · [security architecture](docs/deep-dives/security-architecture.md) · [comparative analysis](docs/deep-dives/comparative-analysis.md)
 
+## Contributing and security
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as
+described in [SECURITY.md](SECURITY.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-[Apache License 2.0](LICENSE). See [NOTICE](NOTICE).
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE). Elastic, Elasticsearch, Kibana, Logstash and Beats
+are trademarks of Elasticsearch B.V.; this project is not affiliated with or endorsed by Elastic.

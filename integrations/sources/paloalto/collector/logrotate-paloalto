@@ -1,12 +1,13 @@
-
-Dosya: /etc/logrotate.d/paloalto
-
+# /etc/logrotate.d/paloalto on the collector host. Filebeat has already shipped the data, so only
+# about one day of local history is kept: rotate daily, keep one gzipped file, skip a missing or
+# empty file, recreate the file for rsyslog and reload rsyslog afterwards.
+# (logrotate only accepts comments on their own lines.)
 /var/log/paloalto/paloalto.log {
-    daily              # Her gün döndür
-    rotate 1           # Sadece 1 eski dosya tut (yaklaşık 1 günlük geçmiş)
-    compress           # Eski dosyayı .gz yap
-    missingok          # Dosya yoksa hata verme
-    notifempty         # Dosya boşsa döndürme
+    daily
+    rotate 1
+    compress
+    missingok
+    notifempty
     create 0640 syslog adm
     sharedscripts
     postrotate

@@ -1,61 +1,71 @@
 # Roadmap
 
-This repository consolidates three projects into one platform. Each phase ships as its own pull request.
+What exists today, what is known to be missing, and the features planned next. Proposals are
+welcome as issues; keep the rules in [CLAUDE.md](CLAUDE.md) in mind (masked LLM input, no automatic
+actions, Basic license only).
 
-| Phase | Scope | Status |
+## Status
+
+| Area | State | Verified |
 | --- | --- | --- |
-| 0 | History cleanup: removed committed installers (~118 MB) and scrubbed a hard-coded password, internal IPs and host names from all commits | Done |
-| 1 | One layout, one license (Apache-2.0), one name (`esm` prefix); duplicates removed; ADRs split per decision | Done |
-| 2 | Elastic content and first runnable profile: Logstash pipelines, ES roles/ILM/templates, detection rules in Kibana format, Sysmon config, compose `siem` profile, bare-metal installer rewrite | In review |
-| 3a | Kubernetes: ECK 3.5 + kustomize (`base`, `components/platform`, `components/production`, overlays `lab`/`onprem`/`gke`), bootstrap Job, GCS snapshots | In review |
-| 3b | Fleet / Elastic Agent (compose layer and ECK `Agent`), templated Windows endpoint rollout | Planned |
-| 4 | Platform services: working builds, shared contracts (`libs/`), NATS bus, LLM providers (Ollama, OpenAI-compatible, Anthropic), case-service and bff APIs, compose `platform.yml`, end-to-end test | In review |
-| 5 | MCP server rewrite: read-only masked tools, allow-listed hunts, stdio and bearer-token HTTP, optional Defender status (ADR-022) | In review |
-| 6 | Outbound integrations: case events, outbound-service (Slack, Teams, webhook, e-mail; TheHive, Jira), threat intel in enrichment (AbuseIPDB, MISP) (ADR-023) | In review |
-| 7 | CI/CD at the root: per-service lint and tests, config validation, secret scanning, image and IaC scanning, docs deploy | Planned |
-| 8 | Documentation site (mkdocs-material) replacing `website/`, English translation of remaining Turkish content | Planned |
+| SIEM on Docker Compose (`siem.yml`) | Available | End to end (ingestion, ILM, 30 rules, alerts) |
+| SIEM on bare-metal Ubuntu 22.04 | Available | Syntax and shellcheck only; not yet run on a real host |
+| Kubernetes (ECK 3.5, kustomize) | Available | `lab` overlay end to end on kind; `onprem`, `gke` schema-validated |
+| Log sources: Windows, FortiGate, Palo Alto, Kaspersky, syslog, Beats health | Available | Logstash config test; FortiGate, PAN-OS, syslog with sample events |
+| Detection rules (30, MITRE-mapped) | Available | Import and synthetic attacks (6 rules fired) |
+| AI triage pipeline (NATS, 7 services) | Available | End to end with mock LLM and DeepSeek |
+| LLM providers | mock, openai-compatible verified; ollama, anthropic unit-tested; vertex untested | |
+| MCP server (read-only, masked) | Available | Official MCP client against the stack |
+| Notifications, ticketing, threat intel | Available | Local webhook catcher; not against real Slack/Teams/SMTP/TheHive/Jira/AbuseIPDB/MISP |
+| Windows endpoint rollout (GPO) | Available | Scripts and `prepare-share.ps1` reviewed; not run in a domain yet |
+| CI (lint, tests, manifests, images, Trivy, gitleaks, CodeQL) | Available | Runs on GitHub |
 
-## Known issues carried into the next phases
+## Known limitations
 
-### Phase 2 follow-ups
+- **Transport security:** Kibana, the bff API and Beats → Logstash run without TLS by default.
+- **Kubernetes:** no NetworkPolicies, Ingress or HPA; `alert-gateway` and `detection-service` must stay at one replica.
+- **Correlation state:** open correlation windows live in `alert-gateway` memory and are lost on restart.
+- **Masking maps** have no TTL.
+- **ILM** deletes the hot tier without `wait_for_snapshot`.
+- **Logstash API** runs without TLS inside Kubernetes (ECK 3.5 + Logstash 8.13 TLS API issue).
+- **Manual steps:** Winlogbeat and Filebeat `panw` ingest pipelines are loaded by hand once per Beats version.
+- **Parsing:** Kaspersky events are stored but not parsed; no web server log source (WEB-* rules ship disabled).
 
-- The Kaspersky pipeline tags and stores events but does not parse the message yet (CEF/LEEF depending on the KSC export).
-- WEB-* detection rules ship disabled: no web server log source is included yet.
-- Beats → Logstash traffic is not encrypted (`ssl.enabled: false`); add an optional TLS input.
-- Winlogbeat and Filebeat `panw` ingest pipelines must be loaded by hand once per version (`setup --pipelines`).
+## Planned features
 
-### Phase 3 follow-ups: deployment
+### Collection and detection
 
-- No Fleet / Elastic Agent path yet (phase 3b).
-- Windows GPO scripts contain `ELK_SERVER_IP`, `DC_IP`, `PAN_FW_IP` and `\\FILESERVER` placeholders that must be set by hand; agent installers are no longer in git.
-- Kubernetes: only `lab` was deployed and tested (kind, Kubernetes 1.37, ECK 3.5); `onprem` and `gke` are schema-validated but not deployed. No NetworkPolicies, no Ingress for Kibana, no HPA.
-- Logstash's monitoring API runs without TLS inside the cluster (ECK 3.5 + Logstash 8.13 TLS API returns empty replies).
-- ILM deletes on the hot tier do not wait for a snapshot (`wait_for_snapshot`); the gke overlay snapshots daily and keeps 14 days hot.
-- The bare-metal installer has not been run on a real Ubuntu 22.04 host yet.
+- [ ] Fleet / Elastic Agent path (compose layer and ECK `Agent`) as an alternative to Beats
+- [ ] TLS for Beats inputs and Logstash → Elasticsearch certificate rotation
+- [ ] Kaspersky (CEF/LEEF) parsing; web server sources (nginx, Apache, IIS) to enable the WEB-* rules
+- [ ] More sources: Microsoft 365 / Entra ID, Linux auditd, Cisco ASA, Suricata/Zeek
+- [ ] Automatic loading of Winlogbeat / Filebeat ingest pipelines in the bootstrap
+- [ ] Kibana dashboards per source and an ESM overview dashboard
+- [ ] Detection rule tests with sample events in CI
 
-### Phase 6 follow-ups: outbound integrations
+### Triage platform
 
-- Verified end to end with a local webhook catcher (Slack format, generic webhook, TheHive API shape); not yet against real Slack, Teams, SMTP, TheHive or Jira instances, nor live AbuseIPDB / MISP.
-- No OpenCTI adapter yet; no GeoIP or asset-criticality enrichers.
-- Failed notifications are not retried (by design); there is no delivery report in the case.
+- [ ] Persistent correlation windows (NATS KV or Elasticsearch) and multiple alert-gateway replicas
+- [ ] Asset criticality and GeoIP enrichers; OpenCTI threat-intel source
+- [ ] Organisation RAG: playbooks and past dispositions with `dense_vector` (CLAUDE.md phase 6)
+- [ ] Triage UI on top of the bff API (CLAUDE.md phase 7)
+- [ ] Human-approved, reversible response actions (`response-service`, CLAUDE.md phase 8)
+- [ ] Masking reverse-map TTL and deletion after case closure
+- [ ] GCP Pub/Sub bus adapter (`BUS_BACKEND=pubsub`, ADR-017)
+- [ ] Platform metrics into Elastic: LLM cost, request rate, triage latency (CLAUDE.md section 7)
+- [ ] Per-analyst identity and audit for MCP and bff calls
 
-### Phase 4 follow-ups: platform services
+### Deployment and operations
 
-- GCP Pub/Sub bus adapter (`BUS_BACKEND=pubsub`) is not implemented; only NATS JetStream.
-- alert-gateway keeps open correlation windows in memory; alerts of an unfinished window are lost on restart.
-- No asset-criticality, GeoIP or threat-intel enrichers in enrichment-service yet.
-- Masking reverse maps have no TTL; access to masking-service is not restricted by network policy yet.
-- `openai-compatible` is verified end to end with DeepSeek (`deepseek-flash`); `ollama` and `anthropic` only against mocked HTTP; `vertex` has no tests.
-- No triage UI; analysts use the bff JSON API (and Kibana for the underlying alerts).
-- Kubernetes manifests in `deploy/kubernetes/base/services` still use the old Pub/Sub settings; update them with the kustomize work in phase 3.
+- [ ] TLS and authentication in front of Kibana, bff and MCP (Ingress / reverse proxy examples)
+- [ ] Kubernetes NetworkPolicies, HPA for stateless services, Helm chart
+- [ ] Snapshot repository examples for on-prem (S3/MinIO, shared FS) and `wait_for_snapshot` in ILM
+- [ ] Bare-metal installer run in CI on an Ubuntu 22.04 VM; platform services as systemd units
+- [ ] Elastic Stack 8.x upgrade path (8.13 → 8.19) and 9.x evaluation
+- [ ] Documentation site (mkdocs) built from `docs/`
 
-### Phase 5 follow-ups: MCP server
+## History
 
-- Single shared bearer token; no per-analyst identity or audit of MCP tool calls yet.
-- Only six hunts; add more to `content/hunting/hunts.yml` as sources are onboarded.
-- `docs/deployment/kubernetes-master-guide.md` still describes the old MCP prototype.
-
-### Phase 8: Documentation
-
-- Still in Turkish: `docs/deployment/kubernetes-master-guide.md`, `docs/integrations/windows-audit-policy.md`, `deploy/endpoints/windows/gpo/GUIDE.tr.txt` and the GPO `.bat` / `.ps1` scripts.
-- `docs/components/*.md` and `docs/operations/troubleshooting.md` still describe the old installer (enrollment token, port 5516 for Kaspersky, `logs-90d` policy).
+The repository consolidates three projects. The consolidation shipped as phases 0–8 in pull
+requests #1–#7: history cleanup, single layout and license, Elastic content, platform services,
+MCP server, Kubernetes, outbound integrations, CI and documentation. See [CHANGELOG.md](CHANGELOG.md).

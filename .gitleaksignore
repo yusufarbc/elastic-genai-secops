@@ -1,0 +1,4 @@
+# Reviewed gitleaks findings (false positives): curl -u with ${ES_PASSWORD} or documentation examples.
+1e4347a3a37cf8ddb0d9472d1324d0effd92a5d1:deploy/compose/siem.yml:curl-auth-user:90
+3d6a0ca13ad220bdda6692a3e5e8159adab7f60a:elk-ubuntu-jammy-build-main/website/pages/components.html:curl-auth-user:96
+fe0e751915efb97619c9065fd7b3ae6cfd5a1c1b:website/pages/components.html:curl-auth-user:96
