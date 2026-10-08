@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"esm/libs/go-common/contracts"
@@ -12,27 +13,48 @@ import (
 // ErrInvalidReview is returned for an unknown review status.
 var ErrInvalidReview = errors.New("status must be approved or rejected")
 
+// Publisher sends case events to outbound integrations (esm.case-events).
+type Publisher interface {
+	Publish(ctx context.Context, subject, msgID string, v any) error
+}
+
 // Service builds cases from triage results and records analyst reviews.
 type Service struct {
 	Store    Store
 	Unmasker Unmasker
+	Events   Publisher // optional
 	Now      func() time.Time
+	Log      *slog.Logger
 }
 
-// FromTriageResult creates the case for a triage result. Redelivered results are ignored.
+// FromTriageResult creates the case for a triage result and announces it.
+// Redelivered results do not overwrite the stored case; the event is published again with the
+// same message ID, so JetStream drops it if the first publish already went through.
 func (s *Service) FromTriageResult(ctx context.Context, r *contracts.TriageResult) (*Case, error) {
 	m, err := s.Unmasker.ReverseMap(ctx, r.IncidentID)
 	if err != nil {
 		return nil, fmt.Errorf("reverse map: %w", err)
 	}
 	c := Build(r, m, s.Now())
-	if err := s.Store.Create(ctx, c); err != nil {
-		if errors.Is(err, ErrExists) {
-			return c, nil
-		}
+	if err := s.Store.Create(ctx, c); err != nil && !errors.Is(err, ErrExists) {
 		return nil, err
+	} else if errors.Is(err, ErrExists) {
+		if c, err = s.Store.Get(ctx, c.ID); err != nil {
+			return nil, err
+		}
+	}
+	if err := s.publish(ctx, contracts.CaseEventCreated, "created:"+c.ID, c); err != nil {
+		return nil, fmt.Errorf("publish case event: %w", err)
 	}
 	return c, nil
+}
+
+func (s *Service) publish(ctx context.Context, event, msgID string, c *Case) error {
+	if s.Events == nil {
+		return nil
+	}
+	return s.Events.Publish(ctx, contracts.SubjectCaseEvents, msgID,
+		contracts.CaseEvent{Event: event, CaseID: c.ID, Case: c})
 }
 
 // Build assembles a case from a triage result and the incident's reverse map (pure function).
@@ -98,6 +120,12 @@ func (s *Service) Review(ctx context.Context, id string, rv Review) (*Case, erro
 	c.UpdatedAt = now
 	if err := s.Store.Put(ctx, c); err != nil {
 		return nil, err
+	}
+	// The review is stored either way; a failed publish only delays ticketing, so report it in the
+	// log instead of failing the analyst's request.
+	msgID := fmt.Sprintf("reviewed:%s:%d", c.ID, now.UnixNano())
+	if err := s.publish(ctx, contracts.CaseEventReviewed, msgID, c); err != nil && s.Log != nil {
+		s.Log.Error("case event publish failed", "case_id", c.ID, "error", err)
 	}
 	return c, nil
 }

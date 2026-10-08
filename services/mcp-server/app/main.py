@@ -38,7 +38,7 @@ def http_app(token: str):  # type: ignore[no-untyped-def]
 
     mcp = server_from_env()
     mcp.settings.stateless_http = True
-    # DNS-rebinding protection stays on; list the Host values clients use (host:port, * for any port)
+    # DNS-rebinding protection stays on; list the Host values clients use (host:port, * = any)
     allowed = os.getenv("MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*")
     hosts = [h.strip() for h in allowed.split(",") if h.strip()]
     mcp.settings.transport_security = TransportSecuritySettings(

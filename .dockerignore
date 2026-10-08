@@ -9,3 +9,4 @@ deploy
 content
 !content/hunting
 integrations
+!integrations/outbound

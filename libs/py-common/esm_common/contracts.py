@@ -13,7 +13,11 @@ SUBJECT_ALERTS = "esm.alerts"
 SUBJECT_INCIDENTS = "esm.incidents"
 SUBJECT_MASKED_INCIDENTS = "esm.masked-incidents"
 SUBJECT_TRIAGE_RESULTS = "esm.triage-decisions"
+SUBJECT_CASE_EVENTS = "esm.case-events"
 SUBJECT_DLQ = "esm.dlq"
+
+CASE_EVENT_CREATED = "created"
+CASE_EVENT_REVIEWED = "reviewed"
 
 TRIAGE_STATUS_TRIAGED = "triaged"
 TRIAGE_STATUS_BUDGET_EXCEEDED = "budget_exceeded"
@@ -54,6 +58,10 @@ class MaskedIP(BaseModel):
     token: str
     geo_country: str | None = None
     private: bool = False
+    # Threat-intel verdict for external addresses (None when not looked up)
+    ti_malicious: bool | None = None
+    ti_score: int | None = None
+    ti_sources: list[str] | None = None
 
 
 class TimelineEntry(BaseModel):
@@ -105,3 +113,42 @@ class TriageResult(BaseModel):
     error: str = ""
     decision: TriageDecision | None = None
     incident: MaskedIncident
+
+
+class CaseTimelineEntry(BaseModel):
+    timestamp: datetime | None = None
+    rule: str = ""
+    severity: str = ""
+    host: str = ""
+    user: str = ""
+
+
+class Case(BaseModel):
+    """Case document as stored by case-service (un-masked). Unknown fields are ignored."""
+
+    id: str
+    incident_id: str = ""
+    created_at: datetime | None = None
+    triage_status: str = ""
+    review_status: str = "pending"
+    reviewed_by: str = ""
+    analyst_notes: str = ""
+    severity: str = "medium"
+    risk_score: int = 0
+    alert_count: int = 0
+    summary: str = ""
+    incident_summary: str = ""
+    recommended_actions: list[str] | None = None
+    mitre_techniques: list[str] | None = None
+    affected_hosts: list[str] | None = None
+    affected_users: list[str] | None = None
+    source_ips: list[str] | None = None
+    timeline: list[CaseTimelineEntry] | None = None
+
+
+class CaseEvent(BaseModel):
+    """Published by case-service on esm.case-events."""
+
+    event: str
+    case_id: str
+    case: Case

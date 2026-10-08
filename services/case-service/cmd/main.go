@@ -47,6 +47,7 @@ func main() {
 		Store:    store,
 		Unmasker: cases.NewMaskingClient(envx.String("MASKING_SERVICE_URL", "http://masking-service:8001")),
 		Now:      func() time.Time { return time.Now().UTC() },
+		Log:      log,
 	}
 
 	srv := &http.Server{
@@ -68,6 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer b.Close()
+	svc.Events = b // case events for outbound-service (notifications, tickets)
 
 	err = b.Subscribe(ctx, contracts.SubjectTriageResults, "case-service", func(ctx context.Context, data []byte) error {
 		var r contracts.TriageResult
