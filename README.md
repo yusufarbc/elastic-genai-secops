@@ -55,6 +55,7 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | LLM provider | `mock` · `ollama` · `openai-compatible` · `anthropic` · `vertex` | Available: `mock` tested end to end; `ollama`, `openai-compatible`, `anthropic` tested against mocked HTTP only; `vertex` untested |
 | Message bus | NATS JetStream | Available |
 | Message bus | GCP Pub/Sub | Planned |
+| MCP access | read-only, masked tools; stdio or bearer-token HTTP | Available |
 
 ## Repository layout
 
@@ -99,6 +100,8 @@ python ../../tests/e2e/pipeline_test.py        # optional end-to-end check
 ```
 
 Cases are served at <http://localhost:8080/api/cases>.
+The same stack exposes a read-only, masked [MCP server](docs/genai/mcp-server.md) on
+`http://localhost:8090/mcp` for Claude Desktop, Claude Code and other MCP clients.
 
 **Kubernetes with ECK:** see [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md).
 

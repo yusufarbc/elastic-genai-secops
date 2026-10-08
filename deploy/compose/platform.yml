@@ -93,6 +93,21 @@ services:
       MASKING_SERVICE_URL: http://masking-service:8001
       LISTEN_ADDR: ":8002"
 
+  # Read-only, masked MCP access for clients such as Claude Desktop (docs/genai/mcp-server.md)
+  mcp-server:
+    <<: *platform-service
+    build: { context: ../.., dockerfile: services/mcp-server/Dockerfile }
+    image: esm/mcp-server:dev
+    environment:
+      <<: *platform-es
+      MCP_TRANSPORT: http
+      MCP_TOKEN: ${MCP_TOKEN:?set MCP_TOKEN in .env (run init-env)}
+      MCP_ALLOWED_HOSTS: localhost:*,127.0.0.1:*,mcp-server:*
+      CASE_API_URL: http://bff:8080/api
+      MASKING_SERVICE_URL: http://masking-service:8001
+    ports:
+      - "127.0.0.1:8090:8090"
+
   bff:
     build: { context: ../.., dockerfile: services/bff/Dockerfile }
     image: esm/bff:dev

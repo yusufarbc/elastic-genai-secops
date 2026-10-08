@@ -13,16 +13,18 @@ function New-Secret([int]$Length) {
 $envPath = Join-Path $PSScriptRoot '.env'
 $created = -not (Test-Path $envPath)
 $existing = @()
-if (-not $created) { $existing = Get-Content $envPath | Where-Object { $_ -match '^[A-Z_]+=' } | ForEach-Object { $_.Split('=')[0] } }
+# -cmatch (case-sensitive) on purpose: case-insensitive -match fails for "I" under the Turkish
+# culture ("I" lowercases to dotless "ı"), which made existing keys look missing.
+if (-not $created) { $existing = Get-Content $envPath | Where-Object { $_ -cmatch '^[A-Z_]+=' } | ForEach-Object { $_.Split('=')[0] } }
 
 $out = New-Object System.Collections.Generic.List[string]
 $added = 0
 foreach ($line in Get-Content .env.example) {
     if ($line -eq '' -or $line.StartsWith('#')) { if ($created) { $out.Add($line) }; continue }
     $key = $line.Split('=')[0]
-    if ($existing -contains $key) { continue }
-    if ($line -eq 'KIBANA_ENCRYPTION_KEY=__GENERATE__') { $out.Add("KIBANA_ENCRYPTION_KEY=$(New-Secret 48)") }
-    elseif ($line -match '^([A-Z_]+)=__GENERATE__$') { $out.Add("$($Matches[1])=$(New-Secret 24)") }
+    if ($existing -ccontains $key) { continue }
+    if ($line -cin 'KIBANA_ENCRYPTION_KEY=__GENERATE__', 'MCP_TOKEN=__GENERATE__') { $out.Add("$key=$(New-Secret 48)") }
+    elseif ($line -cmatch '^([A-Z_]+)=__GENERATE__$') { $out.Add("$($Matches[1])=$(New-Secret 24)") }
     else { $out.Add($line) }
     $added++
 }
