@@ -1,83 +1,91 @@
-# Architecture & Resource Guide
+[← Back to README](../../README.md)
 
-This document outlines the system architecture, hardware requirements, and internal mechanisms of **Elastic-SecOps-Mastery**.
+# Architecture overview
 
-## 1. System Architecture
+Elastic-SecOps-Mastery has three layers. Each works without the one above it.
 
-The following diagram illustrates how the components interact:
+| Layer | Components | Profile |
+| --- | --- | --- |
+| Collection | Beats / WEF / syslog senders → Logstash pipelines in `integrations/sources` | `siem` |
+| Detection | Elasticsearch data streams, Kibana Security detection rules (`content/detection-rules`) | `siem` |
+| Triage | NATS + platform services: incident correlation, masking, LLM triage, cases, MCP, outbound | `siem` + platform |
 
 ```mermaid
-graph TD
-    User([User / Analyst]) -->|Chat Interface| LLM[Local LLM Client]
-    LLM -->|MCP Protocol| MCP[Python MCP Server]
-    MCP -->|PowerShell| WinDef[Windows Defender]
-    
-    subgraph Observability Stack
-    Fleet[Fleet Server] -->|Manages| Agent[Elastic Agent]
-    Agent -->|Logs & Metrics| ES[(Elasticsearch)]
-    ES -->|Visuals| Kibana[Kibana Dashboard]
+flowchart LR
+    subgraph Collection
+        S1[Winlogbeat / WEF] --> LS[Logstash]
+        S2[FortiGate · Palo Alto · syslog] --> LS
+        S3[Kaspersky · Metricbeat · Heartbeat] --> LS
     end
-    
-    WinDef -.->|Logs| Agent
+    subgraph Detection
+        LS --> ES[(Elasticsearch<br/>logs-*, metrics-*)]
+        ES --> KB[Kibana rules]
+        KB --> AL[(.alerts-security)]
+    end
+    subgraph Triage
+        AL --> D[detection-service]
+        D -->|esm.alerts| G[alert-gateway]
+        G -->|esm.incidents| E[enrichment-service]
+        E <--> M[masking-service]
+        E -->|esm.masked-incidents| L[llm-orchestrator]
+        L -->|esm.triage-decisions| C[case-service]
+        C <--> M
+        C -->|esm.case-events| O[outbound-service]
+        C --> B[bff /api/cases]
+        MCP[mcp-server] --> B
+    end
 ```
 
-### Components Role
-1.  **Local LLM Client**: The brain. It processes user queries (e.g., "Is my system safe?") and decides which tool to call.
-2.  **MCP Server**: The bridge. It translates LLM tool calls into actual PowerShell commands.
-3.  **Windows Defender**: The enforcer. Executes scans and provides status.
-4.  **Elastic Stack**: The memory. Records all activities, logs, and system metrics for historical analysis.
+## Principles
 
----
+The rules in [CLAUDE.md](../../CLAUDE.md) shape every component:
 
-## 2. Resource Requirements
+- **Deterministic core.** Detection rules and correlation decide; the LLM only suggests. Every case
+  waits for an analyst; nothing acts on LLM output ([ADR-002](adr/002-deterministic-core-human-in-the-loop.md)).
+- **One LLM call per incident**, never per alert or log ([ADR-001](adr/001-llm-per-incident.md)).
+- **Masked, curated input.** Hosts, users and IPs are pseudonymized; free text such as command
+  lines never reaches the LLM ([ADR-004](adr/004-mandatory-pii-masking.md)).
+- **Everything audited.** Every LLM call is stored in `esm-llm-audit`.
+- **Basic license only** ([ADR-014](adr/014-elastic-basic-tier-features.md)).
+- **Portable.** Profiles are independent of targets: Compose, Kubernetes (ECK), bare-metal Ubuntu
+  ([ADR-019](adr/019-deployment-profiles-and-targets.md)); NATS or Pub/Sub ([ADR-017](adr/017-portable-message-bus.md));
+  five LLM providers ([ADR-018](adr/018-multiple-llm-providers.md)).
 
-### 2.1 Endpoint (The Machine being protected)
-This is where the MCP Server and Windows Defender run.
-*   **OS**: Windows 10/11 or Windows Server 2019+.
-*   **CPU**: 2+ Cores.
-*   **RAM**: 4GB+ (Reserved for OS + Agent + Python Server).
+## Data in Elasticsearch
 
-### 2.2 LLM Node (The Brain)
-If you are running the LLM locally (e.g., Ollama with Llama 3):
-*   **RAM**: Minimum **8GB** (16GB Recommended).
-*   **GPU**: NVIDIA GPU with 6GB+ VRAM recommended.
+| Index / data stream | Written by | Contents |
+| --- | --- | --- |
+| `logs-<source>-<namespace>` | Logstash | Events from each source (`windows`, `fortigate`, `paloalto`, `syslog`, `kaspersky`, `heartbeat`) |
+| `metrics-metricbeat-<namespace>` | Logstash | Host metrics |
+| `.alerts-security.alerts-default` | Kibana | Detection alerts |
+| `esm-state` | detection-service | Alert polling checkpoint |
+| `esm-masking-maps` | masking-service | Token ↔ plaintext reverse maps (the only plaintext mapping) |
+| `esm-llm-audit` | llm-orchestrator | Masked prompt, response, model, tokens, latency, outcome per call |
+| `esm-cases` | case-service | Cases and analyst reviews |
 
-### 2.3 Elastic Stack (The Observer)
-*   **Recommended**: 4 vCPUs, 8GB+ RAM, SSD Storage.
+Logs and metrics use the ILM policy `esm-logs` (rollover, delete after `RETENTION_DAYS`).
 
----
+## Users and roles
 
-## 3. Ingestion Architecture: Logstash & Beats
+| User | Role | Used by |
+| --- | --- | --- |
+| `elastic` | superuser | administrators, bootstrap |
+| `kibana_system` | built-in | Kibana |
+| `logstash_ingest` | `logstash_writer`: create documents in `logs-*-*`, `metrics-*-*` | Logstash pipelines |
+| `esm_platform` | `esm_platform`: read alerts, logs and metrics; own `esm-*` | platform services, MCP server |
 
-### 3.1 Logstash: The ETL Engine
-Logstash runs on JRuby and uses a **Persistent Queue (PQ)** architecture for durability.
-*   **Page Files**: The queue represents a sequence of fixed-size "page files" (append-only logs).
-*   **Crash Recovery**: Checkpointing tracks processing state to ensure at-least-once delivery.
+Roles live in `content/elasticsearch/roles`; `content/bootstrap.sh` creates them on every target.
 
-### 3.2 Beats and Backpressure
-Beats use the **Lumberjack Protocol (v2)** to ship logs reliable.
-*   **Ring Buffer**: Libbeat uses a mutex-protected ring buffer for high throughput.
-*   **Backpressure**: If Elasticsearch slows down, ACKs are delayed, propagating backpressure to the input file reader to prevent memory overflows.
+## Message bus
 
----
+NATS JetStream stream `ESM` with subjects `esm.alerts`, `esm.incidents`, `esm.masked-incidents`,
+`esm.triage-decisions`, `esm.case-events` and `esm.dlq`. Consumers are durable, acknowledge
+explicitly, and move a message to `esm.dlq` after five failed deliveries. Message IDs are scoped
+per subject so redeliveries are deduplicated. Contracts: `libs/go-common/contracts` and
+`libs/py-common/esm_common/contracts.py`.
 
-## 4. Elastic Security Engine
+## Where to go next
 
-### 4.1 Elastic Common Schema (ECS)
-The foundation of standardization.
-*   **Hierarchy**: Strict naming (e.g., `source.ip`, `event.action`).
-*   **Reusability**: Rules work across any compliant data source (Sysmon, Windows Events, etc.).
-
-### 4.2 Endpoint & Reflex Engine
-*   **Reflex Engine**: Runs as a privileged service to evaluate events locally against prevention policies.
-*   **Autonomous Response**: Can terminate malicious processes sub-millisecond without network connectivity.
-
-### 4.3 Event Query Language (EQL)
-EQL enables complex threat hunting by correlating events over time.
-
-**Sequence Query Example**:
-```eql
-sequence by host.id with maxspan=1m
-  [process where event.type == "start" and process.name == "cmd.exe"]
-  [network where destination.port == 443]
-```
+- Deployment: [Compose](../../README.md#quick-start) · [bare metal](../deployment/baremetal.md) · [Kubernetes](../deployment/kubernetes.md)
+- Pipeline details: [triage-pipeline.md](../genai/triage-pipeline.md)
+- Decision records: [adr/](adr/README.md)

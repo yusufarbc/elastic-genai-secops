@@ -1,145 +1,95 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elastic-SecOps-Mastery | Next-Gen SOC</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
-
-        body {
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .hero-gradient {
-            background: linear-gradient(135deg, #0F172A 0%, #005571 100%);
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Elastic-SecOps-Mastery</title>
+  <meta name="description" content="Open, AI-assisted security operations on the Basic-licensed Elastic Stack: log collection, detection, incident correlation, masked LLM triage and analyst cases.">
+  <style>
+    :root { --bg: #0b1220; --panel: #121a2b; --text: #e6ebf5; --muted: #9aa7bd; --accent: #36c2b4; --border: #24304a; }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #f7f9fc; --panel: #ffffff; --text: #182033; --muted: #56627a; --accent: #0f8b80; --border: #dfe5ef; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    a { color: var(--accent); }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+    header { padding: 72px 0 40px; }
+    h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 12px; letter-spacing: -0.02em; }
+    .lead { font-size: 1.15rem; color: var(--muted); max-width: 720px; }
+    .buttons { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid var(--accent); }
+    .btn.primary { background: var(--accent); color: var(--bg); }
+    section { padding: 36px 0; border-top: 1px solid var(--border); }
+    h2 { font-size: 1.5rem; margin: 0 0 18px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    .flow { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9rem; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; overflow-x: auto; white-space: pre; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+    pre { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; overflow-x: auto; }
+    footer { padding: 32px 0 48px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--border); }
+  </style>
 </head>
-
-<body class="bg-slate-50 text-slate-900">
-
-    <!-- Nav -->
-    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-slate-200">
-        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-shield-halved text-blue-600 text-2xl"></i>
-                <span
-                    class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-cyan-600">Elastic-SecOps</span>
-            </div>
-            <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery" target="_blank"
-                class="hover:text-blue-600 transition">
-                <i class="fab fa-github text-xl"></i>
-            </a>
-        </div>
-    </nav>
-
-    <!-- Hero -->
-    <header class="hero-gradient text-white pt-24 pb-32 px-6">
-        <div class="container mx-auto text-center max-w-4xl">
-            <h1 class="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
-                Modern SOC <span class="text-cyan-400">Mastery</span>
-            </h1>
-            <p class="text-xl text-slate-300 mb-10 leading-relaxed">
-                A production-ready framework combining <span class="text-white font-semibold">Hardened Elastic
-                    Stack</span> infrastructure
-                with <span class="text-white font-semibold">Generative AI</span> analysis.
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="#get-started"
-                    class="px-8 py-4 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold rounded-lg transition shadow-lg hover:shadow-cyan-500/25">
-                    Start Building
-                </a>
-                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/tree/main/docs"
-                    class="px-8 py-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg transition">
-                    Read Documentation
-                </a>
-            </div>
-        </div>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Elastic-SecOps-Mastery</h1>
+      <p class="lead">Open, AI-assisted security operations on the Basic-licensed Elastic Stack. Collect logs,
+        detect threats with MITRE-mapped rules, correlate alerts into incidents and let an LLM suggest a
+        triage decision &mdash; on masked data, with every case reviewed by an analyst.</p>
+      <div class="buttons">
+        <a class="btn primary" href="https://github.com/yusufarbc/Elastic-SecOps-Mastery#quick-start">Quick start</a>
+        <a class="btn" href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/architecture/overview.md">Architecture</a>
+        <a class="btn" href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/ROADMAP.md">Roadmap</a>
+      </div>
     </header>
 
-    <!-- Features -->
-    <section class="py-20 px-6 -mt-20">
-        <div class="container mx-auto max-w-6xl">
-            <div class="grid md:grid-cols-3 gap-8">
-                <!-- Card 1 -->
-                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-                    <div
-                        class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-2xl mb-6">
-                        <i class="fas fa-server"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-3">1. Build</h3>
-                    <p class="text-slate-600">Automated deployment scripts for Docker and Kubernetes (ECK).
-                        Production-ready configs included.</p>
-                </div>
-                <!-- Card 2 -->
-                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-                    <div
-                        class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-2xl mb-6">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-3">2. Analyze</h3>
-                    <p class="text-slate-600">Python-based MCP Server integrated with LLMs to auto-enrich alerts and
-                        provide remediation context.</p>
-                </div>
-                <!-- Card 3 -->
-                <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-                    <div
-                        class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-2xl mb-6">
-                        <i class="fas fa-crosshairs"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold mb-3">3. Learn</h3>
-                    <p class="text-slate-600">Access comprehensive guides on Threat Hunting, KQL queries, and Incident
-                        Response scenarios.</p>
-                </div>
-            </div>
-        </div>
+    <section>
+      <h2>How it works</h2>
+      <div class="flow">Windows · FortiGate · Palo Alto · Kaspersky · syslog
+        │  Logstash pipelines (integrations/sources)
+        ▼
+Elasticsearch ──► Kibana detection rules (30, MITRE ATT&amp;CK)
+        │  alerts
+        ▼
+detection-service ─► alert-gateway (correlation) ─► enrichment + masking
+        ─► llm-orchestrator (masked, audited, one call per incident)
+        ─► case-service ─► analyst review ─► notifications · tickets · MCP</div>
     </section>
 
-    <!-- Getting Started -->
-    <section id="get-started" class="py-20 bg-slate-50 px-6">
-        <div class="container mx-auto max-w-4xl">
-            <h2 class="text-3xl font-bold text-center mb-12">Choose Your Path</h2>
-            <div class="grid md:grid-cols-2 gap-6">
-                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/tree/main/deploy/compose"
-                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
-                    <div class="text-blue-400 mb-4"><i class="fab fa-docker text-4xl"></i></div>
-                    <h3 class="text-xl font-bold mb-2">Docker Compose</h3>
-                    <p class="text-gray-400">Local development stack: Elasticsearch, Kibana, Logstash and the
-                        platform services.</p>
-                </a>
-                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/deployment/kubernetes.md"
-                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
-                    <div class="text-purple-400 mb-4"><i class="fas fa-cubes text-4xl"></i></div>
-                    <h3 class="text-xl font-bold mb-2">Kubernetes (ECK)</h3>
-                    <p class="text-gray-400">Production-ready deployment using the Elastic Cloud on Kubernetes operator.
-                    </p>
-                </a>
-                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/deployment/baremetal.md"
-                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
-                    <div class="text-green-400 mb-4"><i class="fas fa-server text-4xl"></i></div>
-                    <h3 class="text-xl font-bold mb-2">Bare Metal</h3>
-                    <p class="text-gray-400">One-command Elastic Stack installer for Ubuntu 22.04.</p>
-                </a>
-                <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/tree/main/docs/architecture/adr"
-                    class="bg-gray-800 p-6 rounded-xl hover:bg-gray-750 transition duration-300 border border-gray-700 block">
-                    <div class="text-red-400 mb-4"><i class="fas fa-sitemap text-4xl"></i></div>
-                    <h3 class="text-xl font-bold mb-2">Architecture Decisions</h3>
-                    <p class="text-gray-400">Why the platform is built the way it is: LLM per incident, PII masking,
-                        portable deployment.</p>
-                </a>
-            </div>
-        </div>
+    <section>
+      <h2>What you get</h2>
+      <div class="grid">
+        <div class="card"><h3>SIEM out of the box</h3><p>Elasticsearch, Kibana and Logstash with TLS, ILM, roles and 30 detection rules loaded automatically.</p></div>
+        <div class="card"><h3>Privacy by design</h3><p>Hosts, users and IPs are pseudonymized before the LLM; command lines never leave the platform.</p></div>
+        <div class="card"><h3>Any LLM</h3><p>Ollama for air-gapped sites, OpenAI-compatible APIs (OpenAI, DeepSeek, vLLM), Anthropic or Vertex AI.</p></div>
+        <div class="card"><h3>Human in the loop</h3><p>The LLM suggests; analysts decide. Tickets open only after approval. Nothing acts on its own.</p></div>
+        <div class="card"><h3>Integrations</h3><p>Slack, Teams, webhook, e-mail, TheHive, Jira, AbuseIPDB, MISP, and a read-only MCP server.</p></div>
+        <div class="card"><h3>Auditable</h3><p>Every LLM call is stored with the masked prompt, response, model and token usage.</p></div>
+      </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="bg-slate-900 text-slate-400 py-12 text-center">
-        <p>&copy; 2024 Elastic-SecOps-Mastery. Open Source Education.</p>
+    <section>
+      <h2>Deploy anywhere</h2>
+      <div class="grid">
+        <div class="card"><h3>Docker Compose</h3><p><code>deploy/compose</code> &mdash; SIEM alone or with the AI platform layer.</p></div>
+        <div class="card"><h3>Kubernetes</h3><p>ECK + kustomize overlays for lab, on-prem and GKE.</p></div>
+        <div class="card"><h3>Bare metal</h3><p>One-command installer for Ubuntu 22.04.</p></div>
+        <div class="card"><h3>Windows endpoints</h3><p>Winlogbeat, Sysmon, Metricbeat and Heartbeat via Group Policy.</p></div>
+      </div>
+      <pre><code>git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
+cd Elastic-SecOps-Mastery/deploy/compose
+./init-env.sh
+docker compose -f siem.yml -f platform.yml up -d --build</code></pre>
+    </section>
+
+    <footer>
+      Apache License 2.0 · <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery">GitHub</a> ·
+      <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/tree/main/docs">Documentation</a> ·
+      Elastic, Elasticsearch and Kibana are trademarks of Elasticsearch B.V.; this project is not affiliated with Elastic.
     </footer>
-
+  </div>
 </body>
-
 </html>

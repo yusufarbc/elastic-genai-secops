@@ -1,202 +1,92 @@
-Harika, bu adım projenizin **"Görünürlük"** katmanını tamamlayacak. Windows varsayılan olarak "sessizdir", saldırganlar da bu sessizliği sever. Biz bu politikalarla sistemi "konuşkan" hale getireceğiz.
+[← Back to README](../../README.md)
 
-İşte **Elastic-SecOps-Mastery** projeniz için sunucularınıza (özellikle Domain Controller ve Kritik Sunuculara) uygulamanız gereken **"Advanced Audit Policy" (Gelişmiş Denetim Politikası)** yapılandırma dökümanı.
+# Windows audit and PowerShell logging policy
 
----
+Windows logs very little security detail by default. This Group Policy makes servers (domain
+controllers and critical servers first) record what the detection rules in
+`content/detection-rules` and the triage pipeline need. Apply it before rolling out the collectors
+([windows-endpoints.md](windows-endpoints.md)).
 
-# 🛡️ Windows Advanced Audit & PowerShell Logging Yapılandırma Rehberi
+## 1. Create the GPO
 
-Bu döküman, **Group Policy Management (GPO)** kullanılarak organizasyondaki sunucuların güvenlik loglarını açmayı ve **Elastic Agent**'ın (ve LLM'in) anlamlı veriler toplamasını sağlamayı hedefler.
+1. On a domain controller open **Group Policy Management** (`gpmc.msc`).
+2. Right-click **Group Policy Objects** → **New** → `ESM-Server-Audit-Policy`.
+3. Link it to the OUs that hold your servers. For domain controllers, link a separate GPO to the
+   Domain Controllers OU above the *Default Domain Controllers Policy* instead of editing the default.
 
-### 🎯 Hedef
+## 2. Advanced audit policy
 
-* **Active Directory:** Kimlik hırsızlığı ve yetki yükseltme girişimlerini yakalamak.
-* **PowerShell:** Fileless (dosyasız) saldırıları ve zararlı scriptleri **LLM (GenAI)** için okunabilir hale getirmek.
-* **Sistem:** Log silme veya servis durdurma eylemlerini tespit etmek.
+**Computer Configuration → Policies → Windows Settings → Security Settings → Advanced Audit Policy
+Configuration → System Audit Policies**
 
----
+| Category | Subcategory | Setting | Why | Event IDs |
+| --- | --- | --- | --- | --- |
+| Account Logon (DCs) | Kerberos Authentication Service | Success, Failure | Kerberos abuse (golden/silver tickets, roasting) | 4768, 4771 |
+| Account Logon (DCs) | Credential Validation | Success, Failure | NTLM password guessing | 4776 |
+| Logon/Logoff | Logon | Success, Failure | Who logged on, how (RDP, network, console) | 4624, 4625 |
+| Logon/Logoff | Special Logon | Success | Privileged logons | 4672 |
+| Account Management | User Account Management | Success, Failure | Created, changed, reset, locked accounts | 4720–4740 |
+| Account Management | Security Group Management | Success, Failure | Additions to privileged groups | 4728, 4732, 4756 |
+| Detailed Tracking | Process Creation | Success | Process starts (backup for Sysmon) | 4688 |
+| Policy Change | Audit Policy Change | Success, Failure | Attackers disabling auditing | 4719 |
+| System | Security State Change | Success, Failure | Clock changes, shutdowns | 4608, 4616 |
+| Object Access | Other Object Access Events | Success, Failure | Scheduled task creation | 4698–4702 |
+| System | Security System Extension | Success | Service installation | 4697 |
 
-## BÖLÜM 1: GPO Oluşturma
+Also set **Computer Configuration → Policies → Windows Settings → Security Settings → Local
+Policies → Security Options → Audit: Force audit policy subcategory settings to override audit
+policy category settings** = Enabled, so the advanced settings win over legacy ones.
 
-1. **Domain Controller** üzerinde `gpmc.msc` (Group Policy Management) aracını çalıştırın.
-2. **Group Policy Objects** klasörüne sağ tıklayın -> **New** -> İsim: `SOC-Server-Audit-Policy`.
-3. Bu yeni politikayı, sunucularınızın bulunduğu OU'ya (Organizational Unit) sürükleyip bırakın (Linkleyin).
-* *Not: Domain Controller'lar için "Default Domain Controllers Policy"i düzenlemek yerine yeni bir GPO oluşturup DC OU'sunun en üstüne koymak "Best Practice"tir.*
+## 3. Command lines in process events
 
+**Computer Configuration → Policies → Administrative Templates → System → Audit Process Creation →
+Include command line in process creation events** = Enabled (adds the command line to 4688).
 
+## 4. PowerShell logging
 
----
+**Computer Configuration → Policies → Administrative Templates → Windows Components → Windows
+PowerShell**
 
-## BÖLÜM 2: Kritik Denetim Politikaları (Audit Policies)
+| Setting | Value | Result |
+| --- | --- | --- |
+| Turn on PowerShell Script Block Logging | Enabled | De-obfuscated script blocks, event 4104 (rules WIN-010, WIN-013) |
+| Turn on Module Logging | Enabled, module names `*` | Pipeline execution details, event 4103 |
 
-Oluşturduğunuz GPO'ya sağ tıklayıp **Edit** deyin ve şu yola gidin:
-📂 **Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > System Audit Policies**
+Script block logs can contain secrets typed on the command line. They are stored in Elasticsearch
+only; the triage pipeline never forwards command lines or script text to the LLM.
 
-Aşağıdaki ayarları **Success (Başarılı)** ve **Failure (Başarısız)** olarak işaretleyin:
+## 5. Apply and check
 
-### 1. Account Logon (Sadece Domain Controller için Kritik)
-
-* **Kerberos Authentication Service:** ✅ Success & Failure
-* *Neden:* Kerberos saldırılarını (Golden Ticket vb.) yakalamak için.
-
-
-* **Credential Validation:** ✅ Success & Failure
-* *Neden:* Yanlış şifre denemelerini görmek için.
-
-
-
-### 2. Logon/Logoff (Tüm Sunucular)
-
-* **Logon:** ✅ Success & Failure
-* *Neden:* Sunucuya kim RDP yaptı veya console'dan girdi?
-
-
-* **Special Logon:** ✅ Success
-* *Neden:* Yönetici yetkisiyle (Administrator) oturum açıldığında loglar (Event ID 4672).
-
-
-
-### 3. Account Management (Kullanıcı Yönetimi)
-
-* **User Account Management:** ✅ Success & Failure
-* *Neden:* Yeni kullanıcı oluşturuldu mu? Şifre değişti mi?
-
-
-* **Security Group Management:** ✅ Success & Failure
-* *Neden:* Biri kendini "Domain Admins" grubuna eklerse alarm çalsın.
-
-
-
-### 4. Detailed Tracking (Detaylı Takip)
-
-* **Process Creation:** ✅ Success
-* *Neden:* Sysmon kullanıyoruz ama bu da yedek (backup) olarak kalmalıdır. (Event ID 4688).
-
-
-
-### 5. Policy Change (Politika Değişikliği)
-
-* **Audit Policy Change:** ✅ Success & Failure
-* *Neden:* Saldırgan izlerini örtmek için bu logları kapatmaya çalışırsa yakalamak için.
-
-
-
-### 6. System (Sistem)
-
-* **Security State Change:** ✅ Success & Failure
-* *Neden:* Sistem saati değiştirilirse veya sistem kapanırsa.
-
-
-
----
-
-## BÖLÜM 3: PowerShell Logging (LLM & GenAI İçin Çok Kritik 🚨)
-
-Bu bölüm, projenizdeki Yapay Zekanın (LLM) şifreli saldırıları çözebilmesi için hayati önem taşır.
-
-GPO Editöründe şu yola gidin:
-📂 **Computer Configuration > Policies > Administrative Templates > Windows Components > Windows PowerShell**
-
-Aşağıdaki ayarları **Enabled (Etkin)** yapın:
-
-### 1. Turn on PowerShell Script Block Logging (Komut Dosyası Bloğu Günlüğü)
-
-* **Durum:** Enabled
-* **Açıklama:** PowerShell komutları, çalıştırılmadan hemen önce (şifresi çözülmüş/deobfuscated halde) loglanır.
-* **Elastic Event ID:** 4104
-* *Bu log sayesinde LLM'iniz şunu diyebilir: "Bu base64 kodunun içinde 'Invoke-Mimikatz' gizli!"*
-
-### 2. Turn on Module Logging (Modül Günlüğü)
-
-* **Durum:** Enabled
-* **Options:** "Module Names" kısmına `*` (yıldız) koyun.
-* **Açıklama:** PowerShell modüllerinin (Network, Disk vb.) aktivitelerini kaydeder.
-
----
-
-## BÖLÜM 4: Komut Satırı Parametrelerini Açma
-
-Sysmon kullanıyoruz ama Windows'un kendi loglarında da komut satırını görmek iyidir.
-
-Yol:
-📂 **Computer Configuration > Policies > Windows Settings > Security Settings > Local Policies > Security Options**
-
-* Ayar: **Audit: Include command line in process creation events**
-* Durum: **Enabled**
-
----
-
-## BÖLÜM 5: Uygulama ve Test
-
-GPO ayarlarını tamamladıktan sonra sunucularda aktif olması için:
-
-1. **Politikayı Dağıtma:**
-Sunucu üzerinde CMD (Admin) açın:
 ```cmd
 gpupdate /force
-
-```
-
-
-2. **Kontrol Etme:**
-Ayarların gelip gelmediğini görmek için:
-```cmd
 auditpol /get /category:*
-
 ```
 
+`auditpol` should show *Success and Failure* for the subcategories above. Run
+`Write-Host "audit test"` in PowerShell and look for event 4104 under **Applications and Services
+Logs → Microsoft → Windows → PowerShell → Operational**.
 
-*(Çıktıda "Success and Failure" ibarelerini görmelisiniz.)*
-3. **Log Kontrolü (Elastic Agent Öncesi):**
-Event Viewer > Windows Logs > Security altında;
-* Bir PowerShell açıp `Write-Host "Test Logu"` yazın.
-* Security loglarında veya `Applications and Services Logs > Microsoft > Windows > PowerShell > Operational` altında 4104 ID'li logu arayın.
+Winlogbeat already collects the Security, System and PowerShell channels
+(`integrations/sources/windows/winlogbeat.yml`); no extra configuration is needed.
 
+## 6. DNS server logging (optional, domain controllers)
 
+Sysmon event 22 covers DNS queries on endpoints. To see queries resolved by the DNS server itself,
+enable the **Microsoft-Windows-DNSServer/Analytical** channel (Event Viewer → View → Show Analytic
+and Debug Logs → enable the log) and add it to `winlogbeat.yml` on the DNS servers:
 
----
+```yaml
+  - name: Microsoft-Windows-DNSServer/Analytical
+    ignore_missing_channel: true
+```
 
-### 🚀 Elastic Tarafında Ne Yapılacak?
+The analytical log is high volume; enable it only where you need C2 detection on DNS.
 
-Bu ayarları yaptığınızda, Elastic Agent'ınızdaki **"Custom Windows Event Logs"** entegrasyonuna ekstra bir kanal eklemenize **gerek yoktur.**
+## Summary: where each signal comes from
 
-* Audit Policy logları -> Otomatik olarak **System** ve **Security** kanallarına düşer.
-* PowerShell logları -> Otomatik olarak `Microsoft-Windows-PowerShell/Operational` kanalına düşer (Eğer Fleet politikanızda "Windows" entegrasyonu ekliyse bu varsayılan olarak gelir).
-
-**Sonraki Adım:**
-
----
-
-## BÖLÜM 6: DNS Server Logging (Domain Controller)
-
-Saldırganların Command & Control (C2) sunucuları ile haberleşmesini yakalamak için DNS logları kritiktir. Sysmon (Event ID 22) istemci tarafını çözer, ancak DNS Sunucusu tarafında da loglama açılmalıdır.
-
-### Yöntem: DNS Debug Logging
-
-1.  **DNS Manager**'ı açın (`dnsmgmt.msc`).
-2.  Sunucunuza sağ tıklayın -> **Properties**.
-3.  **Debug Logging** sekmesine gelin.
-4.  **"Log packets for debugging"** kutucuğunu işaretleyin.
-5.  Şu ayarları seçin:
-    *   **Packet direction:** Outgoing, Incoming
-    *   **Transport protocol:** UDP, TCP
-    *   **Packet contents:** Queries/Transfers
-    *   **Packet type:** Request
-    *   **File path:** `C:\Windows\System32\dns\dns.log` (veya uygun bir disk yolu).
-    *   **Limit size:** 500 MB (Disk dolmasını önlemek için).
-
-### Elastic Entegrasyonu
-Bu logu okumak için Elastic Agent politikanıza **"Custom Logs"** entegrasyonu ekleyin:
-*   **File path:** `C:\Windows\System32\dns\dns.log`
-*   **Dataset:** `dns.debug`
-
----
-
-## 🎯 Özet: Hangi Log Nereden Geliyor?
-
-| Log Türü | Kaynak | Araç / Yöntem |
-| :--- | :--- | :--- |
-| **Giriş Başarı/Hata** | Active Directory | Windows Audit Policy (GPO) |
-| **Zararlı Scriptler** | Tüm Sunucular | PowerShell Script Block Logging (GPO) |
-| **Process/Network** | Tüm Sunucular | Sysmon (Helper Script) |
-| **C2 Trafiği** | DNS Sunucusu | DNS Debug Log |
+| Signal | Source | Configured by |
+| --- | --- | --- |
+| Logon success and failure | Security log | This audit policy |
+| Malicious scripts | PowerShell/Operational (4104) | This PowerShell policy |
+| Processes, network, registry, LSASS access | Sysmon | `integrations/sources/windows/sysmon/sysmon.xml` |
+| DNS resolution | Sysmon 22, DNS analytical log | Sysmon, section 6 |

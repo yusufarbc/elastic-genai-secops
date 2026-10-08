@@ -21,6 +21,8 @@ Dockerfile text eol=lf
 *.css text eol=lf
 *.js text eol=lf
 .env.example text eol=lf
+.gitleaksignore text eol=lf
+integrations/sources/**/logrotate-* text eol=lf
 
 # Windows endpoint scripts keep CRLF
 *.ps1 text eol=crlf

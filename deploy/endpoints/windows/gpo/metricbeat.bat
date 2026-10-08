@@ -1,56 +1,41 @@
 @echo off
+rem GPO computer startup script: install or update Metricbeat from the deployment share.
+rem Prepared by deploy/endpoints/windows/prepare-share.ps1, which replaces FILESERVER_SHARE.
+rem Idempotent: installs when missing, otherwise copies the config only when it changed.
 setlocal
 
-rem --- Marker dosyasi (sadece ilk sefer calismak icin) ---
-set "MARKER=C:\ProgramData\metricbeat_installed.flag"
+set "SHARE=FILESERVER_SHARE\metricbeat"
+set "MSI=%SHARE%\metricbeat.msi"
+set "CFG=%SHARE%\metricbeat.yml"
+rem The Beats MSI keeps its configuration under ProgramData
+set "CFG_DIR=C:\ProgramData\Elastic\Beats\metricbeat"
+set "SERVICE=metricbeat"
 
-rem Eger marker varsa, daha once kurulmus demektir, hicbir sey yapma
-if exist "%MARKER%" (
-  echo [INFO] Metricbeat daha once kurulmus, scriptten cikiliyor...
+if not exist "%MSI%" (echo [ERR] missing %MSI% & exit /b 1)
+if not exist "%CFG%" (echo [ERR] missing %CFG% & exit /b 2)
+
+sc query %SERVICE% >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] installing Metricbeat
+  msiexec /i "%MSI%" /quiet /norestart
+  if errorlevel 1 (echo [ERR] msiexec failed & exit /b 3)
+  if not exist "%CFG_DIR%" mkdir "%CFG_DIR%"
+  copy /Y "%CFG%" "%CFG_DIR%\metricbeat.yml" >nul
+  sc config %SERVICE% start= auto >nul
+  sc start %SERVICE% >nul
+  echo [OK] Metricbeat installed
   exit /b 0
 )
 
-set "SHARE=\\FILESERVER\elk\metricbeat"
-set "MSI=%SHARE%\metricbeat.msi"
-set "CFG=%SHARE%\metricbeat.yml"
-
-set "INSTALL_DIR=C:\Program Files\Metricbeat"
-set "SERVICE=metricbeat"
-
-if not exist "%MSI%" (
-  echo [ERR] metricbeat.msi bulunamadi: %MSI%
-  exit /b 1
-)
-if not exist "%CFG%" (
-  echo [ERR] metricbeat.yml bulunamadi: %CFG%
-  exit /b 2
-)
-
-sc query %SERVICE% >nul 2>&1
-if %errorlevel%==0 (
-  echo [INFO] Metricbeat kurulu. Konfig güncelleniyor...
-
-  copy "%CFG%" "%INSTALL_DIR%\metricbeat.yml" /Y >nul
-  
+fc /b "%CFG%" "%CFG_DIR%\metricbeat.yml" >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] Metricbeat configuration changed, restarting the service
+  if not exist "%CFG_DIR%" mkdir "%CFG_DIR%"
+  copy /Y "%CFG%" "%CFG_DIR%\metricbeat.yml" >nul
   sc stop %SERVICE% >nul
+  timeout /t 5 /nobreak >nul
   sc start %SERVICE% >nul
 ) else (
-  echo [INFO] Ilk kurulum yapiliyor...
-
-  msiexec /i "%MSI%" /quiet /norestart
-  
-  copy "%CFG%" "%INSTALL_DIR%\metricbeat.yml" /Y >nul
-  
-  "%INSTALL_DIR%\metricbeat.exe" install
-
-  sc config "%SERVICE%" start= auto >nul
-
-  sc start %SERVICE% >nul
+  echo [OK] Metricbeat is up to date
 )
-
-rem --- Kurulum / guncelleme basarili olduysa marker olustur ---
-rem Boylece bir sonraki reboot'ta script hicbir sey yapmadan hemen cikacak
-type nul > "%MARKER%"
-
-echo [OK] Metricbeat hazir.
 exit /b 0
