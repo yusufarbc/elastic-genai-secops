@@ -15,7 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 vertex = ["google-cloud-aiplatform>=1.54"]
-dev = ["pytest>=8.2", "pytest-asyncio>=0.23"]
+dev = ["pytest>=9.1.1", "pytest-asyncio>=0.23"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
