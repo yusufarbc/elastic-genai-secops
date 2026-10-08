@@ -26,9 +26,12 @@ jobs:
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
             git /repo --redact --verbose --exit-code 1
 
+  # CodeQL and dependency review need GitHub Advanced Security on private repositories;
+  # they run automatically once the repository is public.
   codeql:
     name: SAST · CodeQL · ${{ matrix.language }}
     runs-on: ubuntu-latest
+    if: ${{ !github.event.repository.private }}
     permissions:
       security-events: write
     strategy:
@@ -50,7 +53,7 @@ jobs:
   dependency-review:
     name: SCA · dependency review
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' && !github.event.repository.private }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
