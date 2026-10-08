@@ -48,10 +48,9 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 | --- | --- | --- |
 | Profile | `siem` | Available (Compose, bare metal) |
 | Profile | `siem` + platform layer (AI triage pipeline) | Available (Compose) |
-| Profile | `ai-lite` · `full` on Kubernetes | Planned (Phase 3) |
 | Target: bare-metal Ubuntu 22.04 | `deploy/baremetal/ubuntu/` | Available (`siem`) |
 | Target: Docker Compose | `deploy/compose/siem.yml`, `platform.yml` | Available |
-| Target: Kubernetes (ECK) | `deploy/kubernetes/` lab, on-prem, GKE | Manifests available; kustomize overlays in Phase 3 |
+| Target: Kubernetes (ECK 3.5 + kustomize) | `deploy/kubernetes/overlays/` lab · onprem · gke | Available: `lab` tested end to end on kind; `onprem`, `gke` schema-validated |
 | LLM provider | `mock` · `ollama` · `openai-compatible` · `anthropic` · `vertex` | Available: `mock` and `openai-compatible` (DeepSeek) tested end to end; `ollama`, `anthropic` tested against mocked HTTP only; `vertex` untested |
 | Message bus | NATS JetStream | Available |
 | Message bus | GCP Pub/Sub | Planned |
@@ -103,7 +102,15 @@ Cases are served at <http://localhost:8080/api/cases>.
 The same stack exposes a read-only, masked [MCP server](docs/genai/mcp-server.md) on
 `http://localhost:8090/mcp` for Claude Desktop, Claude Code and other MCP clients.
 
-**Kubernetes with ECK:** see [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md).
+**Kubernetes with ECK** (same profiles; `lab` runs on kind, k3d or Docker Desktop):
+
+```bash
+./deploy/kubernetes/init-secrets.sh lab
+kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/kubernetes/overlays/lab \
+  | kubectl apply --server-side --force-conflicts -f -
+```
+
+See [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md) for ECK installation and the onprem / gke overlays.
 
 ## Documentation
 

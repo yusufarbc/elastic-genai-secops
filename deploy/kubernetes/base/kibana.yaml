@@ -1,0 +1,22 @@
+# ECK generates the Kibana encryption keys. TLS is off inside the cluster (Service esm-kb-http:5601);
+# terminate TLS at your ingress or load balancer.
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: esm
+spec:
+  version: 8.13.4
+  count: 1
+  elasticsearchRef:
+    name: esm
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  podTemplate:
+    spec:
+      containers:
+        - name: kibana
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { memory: 1Gi }

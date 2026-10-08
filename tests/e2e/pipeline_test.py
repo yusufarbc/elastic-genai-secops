@@ -1,7 +1,12 @@
-"""End-to-end check of the triage pipeline against a running compose stack (siem + platform).
+"""End-to-end check of the triage pipeline against a running stack (siem + platform).
 
+Compose:
     cd deploy/compose && docker compose -f siem.yml -f platform.yml up -d --build
     python tests/e2e/pipeline_test.py
+Kubernetes (port-forward svc/esm-es-http 9200 and svc/bff 8080 first):
+    ELASTIC_PASSWORD=$(kubectl -n esm get secret esm-es-elastic-user -o jsonpath='{.data.elastic}' | base64 -d) \
+      python tests/e2e/pipeline_test.py
+ES_URL and BFF_URL override the default https://localhost:9200 and http://localhost:8080.
 
 Writes five synthetic Sysmon "Office spawned PowerShell" events for one host and user, then waits
 for: Kibana rule WIN-001 alerts -> detection-service -> alert-gateway (threshold 5) -> enrichment +
@@ -13,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import ssl
 import sys
 import time
@@ -22,9 +28,19 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-ENV = dict(line.split("=", 1) for line in (ROOT / "deploy/compose/.env").read_text().splitlines()
-           if "=" in line and not line.startswith("#"))
-AUTH = "Basic " + base64.b64encode(f"elastic:{ENV['ELASTIC_PASSWORD']}".encode()).decode()
+
+
+def _elastic_password() -> str:
+    if pw := os.getenv("ELASTIC_PASSWORD"):
+        return pw
+    env = dict(line.split("=", 1) for line in (ROOT / "deploy/compose/.env").read_text().splitlines()
+               if "=" in line and not line.startswith("#"))
+    return env["ELASTIC_PASSWORD"]
+
+
+ES = os.getenv("ES_URL", "https://localhost:9200").rstrip("/")
+BFF = os.getenv("BFF_URL", "http://localhost:8080").rstrip("/")
+AUTH = "Basic " + base64.b64encode(f"elastic:{_elastic_password()}".encode()).decode()
 CTX = ssl._create_unverified_context()  # local stack with a self-signed CA
 TIMEOUT = 15 * 60
 
@@ -67,7 +83,7 @@ def main() -> None:
            "process": {"name": "powershell.exe", "parent": {"name": "WINWORD.EXE"},
                        "command_line": f"powershell -enc AAAA {USER}"}}
     bulk = "".join(json.dumps({"create": {}}) + "\n" + json.dumps(doc) + "\n" for _ in range(5))
-    res = call("https://localhost:9200/logs-windows-default/_bulk?refresh=true", bulk.encode(), "POST")
+    res = call(f"{ES}/logs-windows-default/_bulk?refresh=true", bulk.encode(), "POST")
     assert not res["errors"], res
     step(f"indexed 5 events for host {HOST} / user {USER}")
 
@@ -75,13 +91,13 @@ def main() -> None:
         q = {"size": 0, "query": {"bool": {"filter": [
             {"term": {"kibana.alert.rule.rule_id": "esm-win-001"}},
             {"term": {"host.name": HOST}}]}}}
-        n = call("https://localhost:9200/.alerts-security.alerts-*/_search", q, "POST")
+        n = call(f"{ES}/.alerts-security.alerts-*/_search", q, "POST")
         return n["hits"]["total"]["value"] >= 5
 
     wait_for("5 WIN-001 alerts from Kibana (rules run every 5 minutes)", alerts)
 
     def case() -> dict | None:
-        cases = call("http://localhost:8080/api/cases?size=100", auth=False)["cases"]
+        cases = call(f"{BFF}/api/cases?size=100", auth=False)["cases"]
         return next((c for c in cases if HOST in c.get("affected_hosts", [])), None)
 
     c = wait_for("the case in the bff API", case, every=10)
@@ -96,7 +112,7 @@ def main() -> None:
         "pending analyst review": c["review_status"] == "pending",
     }
 
-    audit = call("https://localhost:9200/esm-llm-audit/_search", {
+    audit = call(f"{ES}/esm-llm-audit/_search", {
         "size": 1, "query": {"term": {"incident_id.keyword": c["incident_id"]}}}, "POST")
     record = audit["hits"]["hits"][0]["_source"]
     sent = record["data_block"] + (record["response"] or "")
@@ -104,7 +120,7 @@ def main() -> None:
     checks["no plaintext host/user/command line reached the LLM"] = (
         HOST not in sent and USER not in sent and "-enc" not in sent)
 
-    reviewed = call(f"http://localhost:8080/api/cases/{c['id']}/review",
+    reviewed = call(f"{BFF}/api/cases/{c['id']}/review",
                     {"status": "approved", "analyst": "e2e", "notes": "pipeline test"}, "POST",
                     auth=False)
     checks["analyst review recorded"] = reviewed["review_status"] == "approved"

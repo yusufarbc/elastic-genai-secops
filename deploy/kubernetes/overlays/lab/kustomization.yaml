@@ -1,0 +1,41 @@
+# lab: everything on one small cluster (kind, k3d, Docker Desktop, minikube), single-node
+# Elasticsearch, platform included, locally built images (esm/<service>:dev).
+#
+#   ./deploy/kubernetes/init-secrets.sh lab
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/kubernetes/overlays/lab \
+#     | kubectl apply --server-side --force-conflicts -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: esm
+resources:
+  - ../../base
+components:
+  - ../../components/platform
+
+secretGenerator:
+  # Created by init-secrets.sh; git-ignored
+  - name: esm-secrets
+    namespace: esm
+    envs:
+      - secrets.env
+generatorOptions:
+  disableNameSuffixHash: true
+
+# Use images built by `docker compose -f siem.yml -f platform.yml build` and loaded into the cluster
+images:
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/detection-service, newName: esm/detection-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/alert-gateway, newName: esm/alert-gateway, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/enrichment-service, newName: esm/enrichment-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/masking-service, newName: esm/masking-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/llm-orchestrator, newName: esm/llm-orchestrator, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/case-service, newName: esm/case-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/bff, newName: esm/bff, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/mcp-server, newName: esm/mcp-server, newTag: dev }
+
+patches:
+  # No load balancer in a lab cluster: reach Logstash with kubectl port-forward
+  - target: { kind: Logstash, name: esm }
+    patch: |-
+      - op: replace
+        path: /spec/services/1/service/spec/type
+        value: ClusterIP
