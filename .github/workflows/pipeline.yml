@@ -13,7 +13,7 @@ name: CI/CD · DevSecOps
 #   6 release   push to staging/production only: publish to GHCR, cosign signature, SBOM and
 #               SLSA provenance attestations. There is no deploy target yet (docs/operations/ci-cd.md).
 #
-# The LLM is always mocked; the billed API is never called (CLAUDE.md section 7).
+# The LLM is always mocked; the billed API is never called (design rule 7, ROADMAP.md).
 # Findings are uploaded as SARIF to the Security tab; HIGH/CRITICAL findings fail the pipeline.
 
 on:

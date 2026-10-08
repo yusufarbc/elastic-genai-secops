@@ -37,3 +37,26 @@ func TestForwardsCaseRoutes(t *testing.T) {
 		t.Errorf("DELETE should not be routed, got %d", rec.Code)
 	}
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"cases":[]}`)
+	}))
+	defer backend.Close()
+	u, _ := url.Parse(backend.URL)
+	h := Handler(u)
+
+	for _, path := range []string{"/healthz", "/api/cases"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		for k, want := range map[string]string{
+			"X-Content-Type-Options":       "nosniff",
+			"Cross-Origin-Resource-Policy": "same-origin",
+			"Cache-Control":                "no-store",
+		} {
+			if got := rec.Header().Get(k); got != want {
+				t.Errorf("%s: %s = %q, want %q", path, k, got, want)
+			}
+		}
+	}
+}

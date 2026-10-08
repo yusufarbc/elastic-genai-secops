@@ -4,7 +4,7 @@ Thanks for your interest in Elastic-SecOps-Mastery. Issues and pull requests are
 
 ## Before you start
 
-- Read [CLAUDE.md](CLAUDE.md): it states the architecture rules every change must keep (LLM per
+- Read the design rules in [ROADMAP.md](ROADMAP.md#design-rules): every change must keep them (LLM per
   incident only, masked input, no automatic actions, Basic license only).
 - Check [ROADMAP.md](ROADMAP.md) for planned work, and open an issue before large changes.
 - Record new design decisions as an ADR in [docs/architecture/adr](docs/architecture/adr/README.md).

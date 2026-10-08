@@ -103,7 +103,7 @@ func Build(r *contracts.TriageResult, m map[string]string, now time.Time) *Case 
 	return c
 }
 
-// Review records an analyst decision. Only humans change review state (CLAUDE.md §1).
+// Review records an analyst decision. Only humans change review state (design rule 1, ROADMAP.md).
 func (s *Service) Review(ctx context.Context, id string, rv Review) (*Case, error) {
 	if rv.Status != ReviewApproved && rv.Status != ReviewRejected {
 		return nil, ErrInvalidReview

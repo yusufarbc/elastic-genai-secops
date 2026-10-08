@@ -40,7 +40,7 @@ flowchart LR
     MCP[mcp-server] -.->|read-only, masked| BFF
 ```
 
-Design rules (see [CLAUDE.md](CLAUDE.md) and the [ADRs](docs/architecture/adr/README.md)):
+Design rules (see [ROADMAP.md](ROADMAP.md#design-rules) and the [ADRs](docs/architecture/adr/README.md)):
 one LLM call per incident, never per alert; only masked data reaches the LLM; LLM output is
 schema-validated JSON and every call is audited; only Basic-tier Elastic features.
 
