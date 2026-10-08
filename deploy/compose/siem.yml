@@ -30,8 +30,10 @@ services:
           unzip -q -o /certs/certs.zip -d /certs
         fi
         chown -R 1000:0 /certs
-        find /certs -type d -exec chmod 750 {} +
+        # Certificates are public and read by every service; private keys stay group-only
+        find /certs -type d -exec chmod 755 {} +
         find /certs -type f -exec chmod 640 {} +
+        find /certs -type f -name '*.crt' -exec chmod 644 {} +
         echo "[certs] ready"
 
   elasticsearch:
@@ -79,6 +81,7 @@ services:
       - RETENTION_DAYS=${RETENTION_DAYS:-90}
       - LOGSTASH_INGEST_PASSWORD=${LOGSTASH_INGEST_PASSWORD:?set LOGSTASH_INGEST_PASSWORD in .env}
       - KIBANA_SYSTEM_PASSWORD=${KIBANA_SYSTEM_PASSWORD:?set KIBANA_SYSTEM_PASSWORD in .env}
+      - ESM_PLATFORM_PASSWORD=${ESM_PLATFORM_PASSWORD:-}
     volumes:
       - certs:/certs:ro
       - ../../content:/content:ro

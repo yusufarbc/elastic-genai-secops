@@ -4,7 +4,6 @@ import pytest
 
 from app.masker import ElasticsearchMasker, Masker
 
-
 # ---------------------------------------------------------------------------
 # In-memory Masker (existing tests, unchanged)
 # ---------------------------------------------------------------------------

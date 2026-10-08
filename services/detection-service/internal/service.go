@@ -1,104 +1,131 @@
+// Package internal implements detection-service: it reads new Kibana Security alerts from
+// Elasticsearch and publishes them, normalized, to esm.alerts.
 package internal
 
 import (
 	"context"
+	"errors"
+	"log/slog"
+	"net/http"
 	"time"
 
-	"esm/detection-service/internal/alert"
-	"esm/detection-service/internal/elastic"
-
-	"go.uber.org/zap"
+	"esm/libs/go-common/bus"
+	"esm/libs/go-common/contracts"
+	"esm/libs/go-common/es"
 )
 
-// DetectionService polls Elasticsearch for new security alerts, normalizes them
-// according to the rule catalogue, and publishes them to the alert bus.
-type DetectionService struct {
-	es        elastic.Client
-	publisher alert.Publisher
-	log       *zap.Logger
+const (
+	alertsIndex  = ".alerts-security.alerts-*"
+	stateIndex   = "esm-state"
+	checkpointID = "detection-service"
+	pageSize     = 200
+)
+
+// Checkpoint is the search_after position of the last published alert, stored in esm-state.
+type Checkpoint struct {
+	TimestampMillis int64  `json:"timestamp_millis"`
+	AlertUUID       string `json:"alert_uuid"`
+}
+
+// Service polls Elasticsearch and publishes alerts.
+type Service struct {
+	es        *es.Client
+	bus       bus.Bus
+	log       *slog.Logger
 	pollEvery time.Duration
+	lookback  time.Duration
 }
 
-func New(es elastic.Client, pub alert.Publisher, log *zap.Logger, pollEvery time.Duration) *DetectionService {
-	return &DetectionService{
-		es:        es,
-		publisher: pub,
-		log:       log,
-		pollEvery: pollEvery,
-	}
+// New returns a Service.
+func New(esClient *es.Client, b bus.Bus, log *slog.Logger, pollEvery, lookback time.Duration) *Service {
+	return &Service{es: esClient, bus: b, log: log, pollEvery: pollEvery, lookback: lookback}
 }
 
-// Run polls ES in a loop until ctx is cancelled.
-func (s *DetectionService) Run(ctx context.Context) error {
+// Run polls until ctx is cancelled.
+func (s *Service) Run(ctx context.Context) error {
+	cp := s.loadCheckpoint(ctx)
+	s.log.Info("starting from checkpoint", "timestamp", time.UnixMilli(cp.TimestampMillis).UTC(), "alert_uuid", cp.AlertUUID)
+
 	ticker := time.NewTicker(s.pollEvery)
 	defer ticker.Stop()
-
-	var lastSeen string
-
 	for {
+		next, err := s.poll(ctx, cp)
+		if err != nil {
+			s.log.Warn("poll failed", "error", err)
+		} else if next != cp {
+			cp = next
+			if err := s.es.Do(ctx, http.MethodPut, "/"+stateIndex+"/_doc/"+checkpointID, cp, nil); err != nil {
+				s.log.Warn("checkpoint save failed", "error", err)
+			}
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			raw, err := s.es.SearchAlerts(ctx, lastSeen, 100)
-			if err != nil {
-				s.log.Warn("ES poll failed", zap.Error(err))
-				continue
-			}
-			for _, r := range raw {
-				a := normalize(r)
-				if err := s.publisher.Publish(ctx, a); err != nil {
-					s.log.Error("publish failed", zap.String("raw_id", r.ID), zap.Error(err))
-					continue
-				}
-				lastSeen = a.Timestamp.Format(time.RFC3339Nano)
-			}
 		}
 	}
 }
 
-// normalize converts a raw Elasticsearch alert document to a typed Alert.
-// Field mapping follows the Elastic Security ECS schema.
-func normalize(r *elastic.RawAlert) *alert.Alert {
-	src := r.Source
+type searchResponse struct {
+	Hits struct {
+		Hits []struct {
+			ID     string         `json:"_id"`
+			Source map[string]any `json:"_source"`
+			Sort   []any          `json:"sort"`
+		} `json:"hits"`
+	} `json:"hits"`
+}
 
-	getString := func(key string) string {
-		if v, ok := src[key]; ok {
-			if s, ok := v.(string); ok {
-				return s
+// poll publishes every open alert after cp and returns the new checkpoint.
+func (s *Service) poll(ctx context.Context, cp Checkpoint) (Checkpoint, error) {
+	for {
+		query := map[string]any{
+			"size": pageSize,
+			"sort": []any{
+				map[string]any{"@timestamp": "asc"},
+				map[string]any{"kibana.alert.uuid": "asc"},
+			},
+			"search_after": []any{cp.TimestampMillis, cp.AlertUUID},
+			"query": map[string]any{"bool": map[string]any{"filter": []any{
+				map[string]any{"term": map[string]any{"kibana.alert.workflow_status": "open"}},
+			}}},
+		}
+		var res searchResponse
+		err := s.es.Do(ctx, http.MethodPost, "/"+alertsIndex+"/_search?allow_no_indices=true", query, &res)
+		if errors.Is(err, es.ErrNotFound) {
+			return cp, nil // no alerts index yet
+		}
+		if err != nil {
+			return cp, err
+		}
+		for _, hit := range res.Hits.Hits {
+			alert := Normalize(hit.ID, hit.Source)
+			if err := s.bus.Publish(ctx, contracts.SubjectAlerts, alert.ID, alert); err != nil {
+				return cp, err // retry from the last published alert on the next poll
+			}
+			s.log.Info("alert published", "alert_id", alert.ID, "rule_id", alert.RuleID, "host", alert.HostName)
+			if len(hit.Sort) == 2 {
+				ms, _ := hit.Sort[0].(float64) // date sort values are epoch milliseconds
+				uuid, _ := hit.Sort[1].(string)
+				cp = Checkpoint{TimestampMillis: int64(ms), AlertUUID: uuid}
 			}
 		}
-		return ""
-	}
-
-	ts := time.Now()
-	if raw := getString("@timestamp"); raw != "" {
-		if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
-			ts = parsed
+		if len(res.Hits.Hits) < pageSize {
+			return cp, nil
 		}
 	}
+}
 
-	sev := alert.SeverityMedium
-	switch getString("kibana.alert.severity") {
-	case "critical":
-		sev = alert.SeverityCritical
-	case "high":
-		sev = alert.SeverityHigh
-	case "low":
-		sev = alert.SeverityLow
+func (s *Service) loadCheckpoint(ctx context.Context) Checkpoint {
+	var doc struct {
+		Source Checkpoint `json:"_source"`
 	}
-
-	return &alert.Alert{
-		ID:          r.ID,
-		Timestamp:   ts,
-		RuleID:      getString("kibana.alert.rule.parameters.rule_id"),
-		RuleName:    getString("kibana.alert.rule.name"),
-		Severity:    sev,
-		SourceIndex: getString("kibana.alert.rule.parameters.index"),
-		RawEventID:  r.ID,
-		HostName:    getString("host.name"),
-		UserName:    getString("user.name"),
-		SourceIP:    getString("source.ip"),
-		ProcessName: getString("process.name"),
+	err := s.es.Do(ctx, http.MethodGet, "/"+stateIndex+"/_doc/"+checkpointID, nil, &doc)
+	if err == nil && doc.Source.TimestampMillis > 0 {
+		return doc.Source
 	}
+	if err != nil && !errors.Is(err, es.ErrNotFound) {
+		s.log.Warn("checkpoint read failed, starting from lookback", "error", err)
+	}
+	return Checkpoint{TimestampMillis: time.Now().Add(-s.lookback).UnixMilli()}
 }

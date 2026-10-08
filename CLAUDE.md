@@ -17,6 +17,8 @@ The platform is deployment-agnostic: profiles (`siem`, `ai-lite`, `full`) are in
 | Path | Contents |
 | --- | --- |
 | `services/` | Platform microservices (Go: detection-service, alert-gateway, case-service, bff; Python: enrichment-service, masking-service, llm-orchestrator, mcp-server) |
+| `libs/` | Shared code: `go-common` (contracts, NATS bus, ES client) and `py-common` (`esm_common`). Message contracts exist once per language here; keep Go and Python in sync. One Go module (`go.mod` at the root, module `esm`) |
+| `tests/e2e/` | End-to-end pipeline test against the compose stack |
 | `content/` | Elastic content independent of deployment: detection rules, ES templates/ILM/roles, Fleet policies, Kibana objects, hunting queries |
 | `integrations/sources/<source>/` | Per log source: Logstash pipeline, collector config, notes |
 | `integrations/outbound/` | Notifier / ticketing / threat-intel adapters |

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esm-common"
+version = "0.1.0"
+description = "Shared contracts, message bus and logging for Elastic-SecOps-Mastery Python services"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "nats-py>=2.7",
+    "structlog>=24.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.23"]
+
+[tool.setuptools.packages.find]
+include = ["esm_common*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

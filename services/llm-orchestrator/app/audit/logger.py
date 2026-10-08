@@ -1,47 +1,72 @@
-"""
-Audit logger for every LLM call. Mandatory per CLAUDE.md §4 and §6.
-Logs: prompt_hash, full masked prompt, full response, model id+version,
-      token counts, latency_ms, resulting_decision.
+"""Audit log for every LLM call (CLAUDE.md section 6).
+
+Each call is logged to stdout and, when ELASTIC_URL is set, indexed into esm-llm-audit:
+prompt hash, full masked prompt, response, provider, model, token usage, latency, outcome
+and the resulting decision. The prompt only ever contains masked data (ADR-004).
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
-import time
-from datetime import datetime, timezone
-from pathlib import Path
+import os
+from datetime import UTC, datetime
 
+import httpx
 import structlog
+from esm_common.contracts import MaskedIncident, TriageDecision
+
+from app.provider.base import LLMResponse
 
 logger = structlog.get_logger("llm.audit")
 
+AUDIT_INDEX = "esm-llm-audit"
 
-def log_call(
-    *,
-    incident_id: str,
-    model_id: str,
-    system_prompt: str,
-    data_block: str,
-    response_content: str,
-    input_tokens: int,
-    output_tokens: int,
-    latency_ms: float,
-    resulting_decision: dict,
-) -> None:
-    prompt_full = f"{system_prompt}\n\n<data>\n{data_block}\n</data>"
-    prompt_hash = hashlib.sha256(prompt_full.encode()).hexdigest()
 
-    logger.info(
-        "llm_call",
-        incident_id=incident_id,
-        model_id=model_id,
-        prompt_hash=prompt_hash,
-        prompt=prompt_full,          # masked — no PII reaches here (ADR-004)
-        response=response_content,
-        input_tokens=input_tokens,
-        output_tokens=output_tokens,
-        latency_ms=round(latency_ms, 1),
-        resulting_decision=resulting_decision,
-        ts=datetime.now(timezone.utc).isoformat(),
-    )
+class AuditLogger:
+    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+        self._client = client
+
+    @classmethod
+    def from_env(cls) -> AuditLogger:
+        url = os.getenv("ELASTIC_URL")
+        if not url:
+            return cls(None)
+        ca = os.getenv("ELASTIC_CA_CERTS") or True
+        client = httpx.AsyncClient(
+            base_url=url.rstrip("/"), verify=ca, timeout=15,
+            auth=(os.getenv("ELASTIC_USER", "elastic"), os.getenv("ELASTIC_PASSWORD", "")),
+        )
+        return cls(client)
+
+    async def record(self, incident: MaskedIncident, system_prompt: str, data_block: str,
+                     prompt_hash: str, provider: str, response: LLMResponse | None,
+                     outcome: str, decision: TriageDecision | None, error: str = "") -> None:
+        doc = {
+            "@timestamp": datetime.now(UTC).isoformat(),
+            "incident_id": incident.incident_id,
+            "provider": provider,
+            "model_id": response.model_id if response else None,
+            "prompt_hash": prompt_hash,
+            "system_prompt": system_prompt,
+            "data_block": data_block,
+            "response": response.content if response else None,
+            "input_tokens": response.input_tokens if response else 0,
+            "output_tokens": response.output_tokens if response else 0,
+            "latency_ms": round(response.latency_ms, 1) if response else None,
+            "outcome": outcome,
+            "error": error or None,
+            "decision": decision.model_dump() if decision else None,
+        }
+        logger.info("llm_call", **{k: v for k, v in doc.items()
+                                   if k not in ("system_prompt", "data_block")})
+        if self._client is None:
+            return
+        try:
+            resp = await self._client.post(f"/{AUDIT_INDEX}/_doc", json=doc)
+            resp.raise_for_status()
+        except Exception as exc:
+            logger.error("audit write to Elasticsearch failed", error=str(exc),
+                         incident_id=incident.incident_id)
+
+    async def close(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()

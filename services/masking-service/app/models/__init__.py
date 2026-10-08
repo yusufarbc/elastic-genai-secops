@@ -1,3 +1,21 @@
-from .masking import MaskRequest, MaskResponse, UnmaskRequest, UnmaskResponse
+from .masking import (
+    MaskBatchRequest,
+    MaskBatchResponse,
+    MaskItem,
+    MaskRequest,
+    MaskResponse,
+    ReverseMapResponse,
+    UnmaskRequest,
+    UnmaskResponse,
+)
 
-__all__ = ["MaskRequest", "MaskResponse", "UnmaskRequest", "UnmaskResponse"]
+__all__ = [
+    "MaskBatchRequest",
+    "MaskBatchResponse",
+    "MaskItem",
+    "MaskRequest",
+    "MaskResponse",
+    "ReverseMapResponse",
+    "UnmaskRequest",
+    "UnmaskResponse",
+]
