@@ -36,6 +36,6 @@ Create a data view for `logs-*` in Discover to browse all sources.
 
 ## What the platform does not rebuild
 
-Search, dashboards, the alerts table and timelines stay in Kibana (CLAUDE.md section 3). The bff
+Search, dashboards, the alerts table and timelines stay in Kibana (design rule 6, ROADMAP.md). The bff
 API only adds what Kibana does not have: incidents built from several alerts, the masked LLM
 triage suggestion and the analyst review state.

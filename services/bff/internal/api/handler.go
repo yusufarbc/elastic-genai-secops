@@ -32,5 +32,19 @@ func Handler(caseService *url.URL) http.Handler {
 	mux.HandleFunc("GET /api/cases", forward)
 	mux.HandleFunc("GET /api/cases/{id}", forward)
 	mux.HandleFunc("POST /api/cases/{id}/review", forward)
-	return mux
+	return securityHeaders(mux)
+}
+
+// securityHeaders sets response headers for a JSON API that browsers must not sniff, frame or
+// share cross-origin (found by the DAST scan in the pipeline).
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+		h.Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
 }

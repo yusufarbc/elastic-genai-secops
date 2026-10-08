@@ -1,7 +1,7 @@
 """Threat-intel lookups for external IP addresses: AbuseIPDB and MISP.
 
 Used by enrichment-service so the LLM receives a deterministic verdict ("flagged by threat
-intel") instead of having to guess (CLAUDE.md section 5). Only public addresses are looked up;
+intel") instead of having to guess (design rule 3, ROADMAP.md). Only public addresses are looked up;
 lookup failures never block an incident.
 """
 
