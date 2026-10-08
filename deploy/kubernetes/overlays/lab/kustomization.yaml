@@ -31,6 +31,7 @@ images:
   - { name: ghcr.io/yusufarbc/elastic-secops-mastery/case-service, newName: esm/case-service, newTag: dev }
   - { name: ghcr.io/yusufarbc/elastic-secops-mastery/bff, newName: esm/bff, newTag: dev }
   - { name: ghcr.io/yusufarbc/elastic-secops-mastery/mcp-server, newName: esm/mcp-server, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/outbound-service, newName: esm/outbound-service, newTag: dev }
 
 patches:
   # No load balancer in a lab cluster: reach Logstash with kubectl port-forward

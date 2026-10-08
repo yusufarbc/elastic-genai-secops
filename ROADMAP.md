@@ -11,7 +11,7 @@ This repository consolidates three projects into one platform. Each phase ships 
 | 3b | Fleet / Elastic Agent (compose layer and ECK `Agent`), templated Windows endpoint rollout | Planned |
 | 4 | Platform services: working builds, shared contracts (`libs/`), NATS bus, LLM providers (Ollama, OpenAI-compatible, Anthropic), case-service and bff APIs, compose `platform.yml`, end-to-end test | In review |
 | 5 | MCP server rewrite: read-only masked tools, allow-listed hunts, stdio and bearer-token HTTP, optional Defender status (ADR-022) | In review |
-| 6 | Outbound integrations: notifiers (Slack, Teams, email), ticketing (TheHive, Jira), threat intel (MISP, OpenCTI, AbuseIPDB) | Planned |
+| 6 | Outbound integrations: case events, outbound-service (Slack, Teams, webhook, e-mail; TheHive, Jira), threat intel in enrichment (AbuseIPDB, MISP) (ADR-023) | In review |
 | 7 | CI/CD at the root: per-service lint and tests, config validation, secret scanning, image and IaC scanning, docs deploy | Planned |
 | 8 | Documentation site (mkdocs-material) replacing `website/`, English translation of remaining Turkish content | Planned |
 
@@ -32,6 +32,12 @@ This repository consolidates three projects into one platform. Each phase ships 
 - Logstash's monitoring API runs without TLS inside the cluster (ECK 3.5 + Logstash 8.13 TLS API returns empty replies).
 - ILM deletes on the hot tier do not wait for a snapshot (`wait_for_snapshot`); the gke overlay snapshots daily and keeps 14 days hot.
 - The bare-metal installer has not been run on a real Ubuntu 22.04 host yet.
+
+### Phase 6 follow-ups: outbound integrations
+
+- Verified end to end with a local webhook catcher (Slack format, generic webhook, TheHive API shape); not yet against real Slack, Teams, SMTP, TheHive or Jira instances, nor live AbuseIPDB / MISP.
+- No OpenCTI adapter yet; no GeoIP or asset-criticality enrichers.
+- Failed notifications are not retried (by design); there is no delivery report in the case.
 
 ### Phase 4 follow-ups: platform services
 

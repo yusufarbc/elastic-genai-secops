@@ -3,12 +3,12 @@ requires = ["setuptools>=70"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "enrichment-service"
+name = "esm-outbound"
 version = "0.1.0"
+description = "Notifier, ticketing and threat-intel adapters for Elastic-SecOps-Mastery"
 requires-python = ">=3.12"
 dependencies = [
     "esm-common",
-    "esm-outbound",
     "httpx>=0.27",
 ]
 
@@ -16,7 +16,7 @@ dependencies = [
 dev = ["pytest>=8.2", "pytest-asyncio>=0.23"]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["esm_outbound*"]
 
 [tool.ruff]
 line-length = 100
@@ -26,7 +26,7 @@ target-version = "py312"
 select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["esm_outbound"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
