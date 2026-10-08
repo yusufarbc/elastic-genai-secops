@@ -1,0 +1,59 @@
+# gke: the reference cloud target (ADR-007/009/010/016). Production shape on GKE Autopilot,
+# standard-rwo disks, 14-day hot retention, daily snapshots to GCS through Workload Identity.
+#
+# Before applying, replace the placeholders in this directory:
+#   PROJECT_ID   your GCP project          (serviceaccounts.yaml)
+#   GCS_BUCKET   snapshot bucket name       (gcs-snapshot-config below)
+# and bind the Kubernetes service accounts to GCP service accounts (docs/deployment/kubernetes.md).
+#
+#   ./deploy/kubernetes/init-secrets.sh gke
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/kubernetes/overlays/gke \
+#     | kubectl apply --server-side --force-conflicts -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: esm
+resources:
+  - ../../base
+  - serviceaccounts.yaml
+  - gcs-snapshot-job.yaml
+components:
+  - ../../components/platform
+  - ../../components/production
+
+secretGenerator:
+  - name: esm-secrets
+    namespace: esm
+    envs:
+      - secrets.env
+configMapGenerator:
+  # 14-day hot tier in Elasticsearch (CLAUDE.md section 2); long-term retention lives in GCS
+  - name: esm-siem-config
+    namespace: esm
+    behavior: merge
+    literals:
+      - RETENTION_DAYS=14
+  - name: esm-gcs-snapshot-config
+    namespace: esm
+    literals:
+      - GCS_BUCKET=GCS_BUCKET
+      - SNAPSHOT_SCHEDULE=0 30 1 * * ?
+      - SNAPSHOT_EXPIRE_AFTER=730d
+generatorOptions:
+  disableNameSuffixHash: true
+
+patches:
+  - target: { kind: Elasticsearch, name: esm }
+    patch: |-
+      - op: add
+        path: /spec/nodeSets/0/volumeClaimTemplates/0/spec/storageClassName
+        value: standard-rwo
+      - op: add
+        path: /spec/nodeSets/0/podTemplate/spec/serviceAccountName
+        value: esm-elasticsearch
+  # Workload Identity for the platform services (needed for LLM_PROVIDER=vertex)
+  - target: { kind: ServiceAccount, name: esm-platform }
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          iam.gke.io/gcp-service-account: esm-platform@PROJECT_ID.iam.gserviceaccount.com

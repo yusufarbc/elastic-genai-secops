@@ -1,0 +1,35 @@
+# Single node by default (lab); the onprem and gke overlays scale it to 3 nodes.
+# ECK creates: Service esm-es-http, Secret esm-es-elastic-user (key "elastic"),
+# Secret esm-es-http-certs-public (key "ca.crt").
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: esm
+spec:
+  version: 8.13.4
+  nodeSets:
+    - name: default
+      count: 1
+      config:
+        node.roles: ["master", "data", "ingest", "remote_cluster_client"]
+        xpack.license.self_generated.type: basic
+        # No privileged sysctl init container: works on any cluster, including GKE Autopilot.
+        node.store.allow_mmap: false
+      podTemplate:
+        spec:
+          containers:
+            - name: elasticsearch
+              env:
+                - name: ES_JAVA_OPTS
+                  value: "-Xms1g -Xmx1g"
+              resources:
+                requests: { cpu: 500m, memory: 2Gi }
+                limits: { memory: 2Gi }
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi

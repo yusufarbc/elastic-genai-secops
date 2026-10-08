@@ -1,0 +1,77 @@
+# Logstash with every pipeline from integrations/sources (same files as bare metal and compose).
+# The pipelines write as logstash_ingest (created by the bootstrap Job), password from esm-secrets.
+apiVersion: logstash.k8s.elastic.co/v1alpha1
+kind: Logstash
+metadata:
+  name: esm
+spec:
+  version: 8.13.4
+  count: 1
+  pipelinesRef:
+    secretName: esm-logstash-pipelines
+  services:
+    # Monitoring API (port 9600), used by ECK's readiness probe and only reachable in the cluster.
+    # Plain HTTP: with ECK 3.5 the TLS-enabled API of Logstash 8.13 answers every request with an
+    # empty reply, so the pod never becomes ready.
+    - name: api
+      tls:
+        selfSignedCertificate:
+          disabled: true
+    # Ports for log senders; the overlay decides how they are exposed (LoadBalancer by default)
+    - name: ingest
+      service:
+        spec:
+          type: LoadBalancer
+          ports:
+            - { name: paloalto-beats, port: 5044, targetPort: 5044, protocol: TCP }
+            - { name: windows-beats, port: 5045, targetPort: 5045, protocol: TCP }
+            - { name: beats-health, port: 5046, targetPort: 5046, protocol: TCP }
+            - { name: kaspersky-beats, port: 5047, targetPort: 5047, protocol: TCP }
+            - { name: syslog-udp, port: 5514, targetPort: 5514, protocol: UDP }
+            - { name: syslog-tcp, port: 5514, targetPort: 5514, protocol: TCP }
+            - { name: syslog-rfc5424, port: 5515, targetPort: 5515, protocol: TCP }
+            - { name: fortigate-udp, port: 5516, targetPort: 5516, protocol: UDP }
+            - { name: fortigate-tcp, port: 5516, targetPort: 5516, protocol: TCP }
+            - { name: paloalto-udp, port: 5517, targetPort: 5517, protocol: UDP }
+            - { name: paloalto-tcp, port: 5517, targetPort: 5517, protocol: TCP }
+  podTemplate:
+    spec:
+      containers:
+        - name: logstash
+          env:
+            - { name: ES_HOSTS, value: "https://esm-es-http:9200" }
+            - { name: ES_USER, value: logstash_ingest }
+            - name: ES_PW
+              valueFrom: { secretKeyRef: { name: esm-secrets, key: LOGSTASH_INGEST_PASSWORD } }
+            - { name: ES_CA_CERT, value: /etc/esm/es-ca/ca.crt }
+            - { name: LS_SOURCES_DIR, value: /etc/logstash/conf.d }
+            - { name: LS_JAVA_OPTS, value: "-Xms512m -Xmx512m" }
+            - name: ES_NAMESPACE
+              valueFrom: { configMapKeyRef: { name: esm-siem-config, key: ES_NAMESPACE } }
+            - name: FORTIGATE_TZ
+              valueFrom: { configMapKeyRef: { name: esm-siem-config, key: FORTIGATE_TZ } }
+            - name: PANOS_TZ
+              valueFrom: { configMapKeyRef: { name: esm-siem-config, key: PANOS_TZ } }
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { memory: 1Gi }
+          volumeMounts:
+            - { name: sources, mountPath: /etc/logstash/conf.d, readOnly: true }
+            - { name: es-ca, mountPath: /etc/esm/es-ca, readOnly: true }
+      volumes:
+        - name: sources
+          configMap:
+            name: esm-logstash-sources
+            # Rebuild the integrations/sources layout that pipelines.yml points at
+            items:
+              - { key: syslog.conf, path: syslog/logstash.conf }
+              - { key: windows.conf, path: windows/logstash.conf }
+              - { key: windows-event-codes.yml, path: windows/translate/windows_event_codes.yml }
+              - { key: fortigate.conf, path: fortigate/logstash.conf }
+              - { key: paloalto-syslog.conf, path: paloalto/logstash-syslog.conf }
+              - { key: paloalto-beats.conf, path: paloalto/logstash-beats.conf }
+              - { key: kaspersky.conf, path: kaspersky/logstash.conf }
+              - { key: beats-health.conf, path: beats-health/logstash.conf }
+        - name: es-ca
+          secret:
+            secretName: esm-es-http-certs-public
