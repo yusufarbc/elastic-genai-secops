@@ -1,0 +1,42 @@
+# Shared non-sensitive config for all Elastic-SecOps-Mastery services.
+# Substitute ${GCP_PROJECT} and ${IMAGE_TAG} before applying:
+#   envsubst < configmap.yaml | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esm-config
+  namespace: esm
+data:
+  GCP_PROJECT: "${GCP_PROJECT}"
+
+  # Elasticsearch — ECK creates the service 'esm-es-http' in the esm namespace
+  ELASTIC_URL: "https://esm-es-http:9200"
+  ELASTIC_USER: "elastic"
+  ELASTIC_CA_CERTS: "/etc/esm/certs/ca.crt"
+
+  # Pub/Sub — leave PUBSUB_EMULATOR_HOST empty in production
+  PUBSUB_EMULATOR_HOST: ""
+  PUBSUB_PROJECT: "${GCP_PROJECT}"
+
+  # Topics (ADR-013)
+  ALERTS_TOPIC: "esm.alerts"
+  INCIDENTS_TOPIC: "esm.incidents"
+  MASKED_INCIDENTS_TOPIC: "esm.masked-incidents"
+  TRIAGE_DECISIONS_TOPIC: "esm.triage-decisions"
+  DLQ_TOPIC: "esm.dlq"
+
+  # Subscriptions
+  ALERTS_SUBSCRIPTION: "esm.alerts.gateway-sub"
+  INCIDENTS_SUBSCRIPTION: "esm.incidents.enrichment-sub"
+  MASKED_INCIDENTS_SUBSCRIPTION: "esm.masked-incidents.llm-sub"
+  TRIAGE_DECISIONS_SUBSCRIPTION: "esm.triage-decisions.case-sub"
+
+  # Inter-service HTTP
+  MASKING_SERVICE_URL: "http://masking-service:8001"
+  CASE_SERVICE_URL: "http://case-service:8002"
+
+  # Alert gateway
+  CORRELATION_THRESHOLD: "5"
+
+  # BFF
+  LISTEN_ADDR: ":8080"
