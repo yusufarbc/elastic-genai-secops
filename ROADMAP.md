@@ -18,7 +18,7 @@ actions, Basic license only).
 | MCP server (read-only, masked) | Available | Official MCP client against the stack |
 | Notifications, ticketing, threat intel | Available | Local webhook catcher; not against real Slack/Teams/SMTP/TheHive/Jira/AbuseIPDB/MISP |
 | Windows endpoint rollout (GPO) | Available | Scripts and `prepare-share.ps1` reviewed; not run in a domain yet |
-| CI (lint, tests, manifests, images, Trivy, gitleaks, CodeQL) | Available | Runs on GitHub |
+| CI/CD + DevSecOps pipeline (SAST, SCA, IaC, secrets, SBOM, e2e, DAST, signed images) | Available | `staging` → `production`, docs/operations/ci-cd.md |
 
 ## Known limitations
 

@@ -1,3 +1,5 @@
+<!-- Target `staging`. Only promotion PRs from `staging` (or hotfix/*) go into `production`. -->
+
 ## Summary
 
 <!-- What changes and why. Link the issue or ROADMAP item. -->

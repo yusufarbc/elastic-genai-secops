@@ -79,7 +79,7 @@ done
 ```
 
 **onprem** pulls `ghcr.io/yusufarbc/elastic-secops-mastery/<service>:latest` (published by CI from
-`main`). Set your StorageClass with the commented patch in `overlays/onprem/kustomization.yaml`.
+`production`). Set your StorageClass with the commented patch in `overlays/onprem/kustomization.yaml`.
 
 **gke** before applying:
 

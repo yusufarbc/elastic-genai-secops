@@ -1,0 +1,9 @@
+# golangci-lint v2 (run by the Lint job in .github/workflows/pipeline.yml, with gosec enabled)
+version: "2"
+linters:
+  enable:
+    - gosec
+  exclusions:
+    presets:
+      # unchecked errors from deferred Close() and similar standard-library idioms
+      - std-error-handling

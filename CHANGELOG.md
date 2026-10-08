@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 First consolidated version of three earlier projects (an Ubuntu ELK installer, an MCP-based GenAI
 SOC prototype and an AI-SOC platform).
 
+### Changed
+
+- **CI/CD**: one DevSecOps pipeline for the `staging` → `production` flow (ADR-024): golangci-lint
+  with gosec, Semgrep, CodeQL, govulncheck, pip-audit, Trivy IaC and image scans, Syft SBOMs, e2e on
+  the compose stack, OWASP ZAP API scan, cosign-signed images with provenance and SBOM attestations.
+
 ### Added
 
 - **SIEM profile** on three targets: Docker Compose (`deploy/compose/siem.yml`), bare-metal Ubuntu
@@ -25,7 +31,7 @@ SOC prototype and an AI-SOC platform).
   tickets after analyst approval; AbuseIPDB and MISP threat intel for external IPs.
 - **Windows endpoint rollout** via GPO startup scripts and `prepare-share.ps1` (verified downloads).
 - **CI**: Go and Python lint/tests, rule and manifest validation (kubeconform with ECK schemas),
-  shellcheck, image builds with Trivy, GHCR publishing from `main`.
+  shellcheck, image builds with Trivy, GHCR publishing from `production`.
 - End-to-end tests for the pipeline and the MCP server; architecture decision records ADR-001 to ADR-023.
 
 ### Changed
