@@ -75,7 +75,7 @@ jobs:
       - name: Detection rules are built from rules.yml
         run: python content/detection-rules/build.py --check
       - name: Shell scripts
-        run: shellcheck -S warning content/bootstrap.sh deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh deploy/compose/init-env.sh
+        run: shellcheck -S warning content/bootstrap.sh deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh deploy/compose/init-env.sh deploy/kubernetes/init-secrets.sh
       - name: Compose files
         run: |
           cd deploy/compose
@@ -142,7 +142,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
       - name: Trivy scan (fails on HIGH/CRITICAL with a fix available)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: esm/${{ matrix.service }}:ci
           severity: HIGH,CRITICAL
