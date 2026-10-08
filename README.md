@@ -15,7 +15,7 @@ analyst reviews. The LLM never acts on its own.
 > **Status:** early release. The SIEM, the AI triage pipeline, the MCP server and the outbound
 > integrations run end to end; see [ROADMAP.md](ROADMAP.md) for what is verified, known limitations
 > and planned features. The project consolidates three earlier projects (an Ubuntu ELK installer,
-> an MCP-based GenAI SOC prototype and the Vigil AI-SOC platform).
+> an MCP-based GenAI SOC prototype and an AI-SOC platform).
 
 ## Architecture
 

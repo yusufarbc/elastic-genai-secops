@@ -7,7 +7,7 @@ It consolidates three earlier projects by the same author, previously
 published under different licenses and relicensed here by the copyright holder:
   - elk-ubuntu-jammy-build
   - Elastic-GenAI-SOC (previously GPL-3.0)
-  - Vigil / Sentinel (previously AGPL-3.0)
+  - AI-SOC platform, working name Sentinel (previously AGPL-3.0)
 
 Third-party software such as Elastic Stack, Beats and Sysinternals Sysmon is
 not redistributed in this repository; it is downloaded from the vendor at
