@@ -1,0 +1,57 @@
+# Allow-listed hunting queries for the MCP server (services/mcp-server).
+#
+# An MCP client can only run these by id; it cannot send its own query. Each hunt returns the
+# total hit count and the top values of `group_by` fields. Group only by fields that do not
+# identify people or machines (no host.name, user.name, *.ip): results are shown to an LLM.
+#
+# Fields: id, title, description, index, query (Lucene syntax, run with an Elasticsearch
+# query_string filter; queries come only from this file), group_by (max 3), mitre.
+
+hunts:
+  - id: encoded-powershell
+    title: Encoded PowerShell commands
+    description: PowerShell started with -EncodedCommand / -enc; grouped by parent process.
+    index: logs-windows-*
+    query: 'process.name:(powershell.exe OR pwsh.exe) AND process.command_line:(*-enc* OR *-EncodedCommand*)'
+    group_by: [process.parent.name]
+    mitre: [T1027, T1059.001]
+
+  - id: office-child-processes
+    title: Child processes of Office applications
+    description: Processes started by Word, Excel, PowerPoint or Outlook; grouped by parent and child.
+    index: logs-windows-*
+    query: 'event.category:process AND process.parent.name:(WINWORD.EXE OR EXCEL.EXE OR POWERPNT.EXE OR OUTLOOK.EXE)'
+    group_by: [process.parent.name, process.name]
+    mitre: [T1059]
+
+  - id: failed-logons
+    title: Failed Windows logons by logon type
+    description: Security event 4625 grouped by logon type and failure status.
+    index: logs-windows-*
+    query: 'event.code:4625'
+    group_by: [winlog.event_data.LogonType, winlog.event_data.Status]
+    mitre: [T1110]
+
+  - id: new-services
+    title: Newly installed services
+    description: Service installations (7045 / 4697) grouped by service file name.
+    index: logs-windows-*
+    query: 'event.code:(7045 OR 4697)'
+    group_by: [winlog.event_data.ServiceName]
+    mitre: [T1543.003]
+
+  - id: blocked-connections-by-port
+    title: Blocked firewall connections by destination port
+    description: Denied or dropped firewall traffic grouped by destination port and protocol.
+    index: logs-fortigate-*,logs-paloalto-*
+    query: 'event.action:(deny OR drop OR block OR reset-both OR reset-client OR reset-server)'
+    group_by: [destination.port, network.transport]
+    mitre: [T1595]
+
+  - id: outbound-by-country
+    title: Allowed outbound traffic by destination country
+    description: Accepted firewall traffic to public addresses grouped by destination country.
+    index: logs-fortigate-*,logs-paloalto-*
+    query: 'destination.geo.country_iso_code:* AND NOT event.action:(deny OR drop OR block)'
+    group_by: [destination.geo.country_iso_code]
+    mitre: [T1071]

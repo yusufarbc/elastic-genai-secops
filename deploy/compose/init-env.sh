@@ -16,7 +16,7 @@ while IFS= read -r line || [ -n "$line" ]; do
   key="${line%%=*}"
   grep -q "^${key}=" .env && continue
   case "$line" in
-    KIBANA_ENCRYPTION_KEY=__GENERATE__) echo "KIBANA_ENCRYPTION_KEY=$(gen 48)" >> .env ;;
+    KIBANA_ENCRYPTION_KEY=__GENERATE__|MCP_TOKEN=__GENERATE__) echo "${key}=$(gen 48)" >> .env ;;
     *=__GENERATE__) echo "${key}=$(gen 24)" >> .env ;;
     *) echo "$line" >> .env ;;
   esac
