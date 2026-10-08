@@ -1,0 +1,35 @@
+# /etc/filebeat/filebeat.yml on the Palo Alto collector host.
+#
+# PAN-OS -> rsyslog (rsyslog-30-paloalto.conf, UDP 5518) -> /var/log/paloalto/paloalto.log
+#        -> Filebeat panw module -> Logstash 5044 (logstash-beats.conf) -> Elasticsearch
+#
+# Enable the module and point it at the file:
+#   filebeat modules enable panw
+#   /etc/filebeat/modules.d/panw.yml:
+#     - module: panw
+#       panos:
+#         enabled: true
+#         var.input: file
+#         var.paths: ["/var/log/paloalto/paloalto.log"]
+# Load the module's ingest pipeline into Elasticsearch once per Filebeat version:
+#   filebeat setup --pipelines --modules panw -E output.logstash.enabled=false \
+#     -E output.elasticsearch.hosts=["https://ELK_SERVER_IP:9200"] ...
+
+filebeat.inputs: []          # inputs come from the panw module
+
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+output.logstash:
+  hosts: ["ELK_SERVER_IP:5044"]   # localhost:5044 when Filebeat runs on the Logstash host
+
+setup.template.enabled: false     # index templates and ILM are managed by content/bootstrap.sh
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  rotateeverybytes: 10485760

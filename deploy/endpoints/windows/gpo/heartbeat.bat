@@ -1,57 +1,41 @@
 @echo off
+rem GPO computer startup script: install or update Heartbeat from the deployment share.
+rem Prepared by deploy/endpoints/windows/prepare-share.ps1, which replaces FILESERVER_SHARE.
+rem Idempotent: installs when missing, otherwise copies the config only when it changed.
 setlocal
 
-rem --- Marker dosyasi (sadece ilk sefer calismak icin) ---
-set "MARKER=C:\ProgramData\heartbeat_installed.flag"
+set "SHARE=FILESERVER_SHARE\heartbeat"
+set "MSI=%SHARE%\heartbeat.msi"
+set "CFG=%SHARE%\heartbeat.yml"
+rem The Beats MSI keeps its configuration under ProgramData
+set "CFG_DIR=C:\ProgramData\Elastic\Beats\heartbeat"
+set "SERVICE=heartbeat"
 
-rem Eger marker varsa, daha once kurulmus demektir, hicbir sey yapma
-if exist "%MARKER%" (
-  echo [INFO] Heartbeat daha once kurulmus, scriptten cikiliyor...
+if not exist "%MSI%" (echo [ERR] missing %MSI% & exit /b 1)
+if not exist "%CFG%" (echo [ERR] missing %CFG% & exit /b 2)
+
+sc query %SERVICE% >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] installing Heartbeat
+  msiexec /i "%MSI%" /quiet /norestart
+  if errorlevel 1 (echo [ERR] msiexec failed & exit /b 3)
+  if not exist "%CFG_DIR%" mkdir "%CFG_DIR%"
+  copy /Y "%CFG%" "%CFG_DIR%\heartbeat.yml" >nul
+  sc config %SERVICE% start= auto >nul
+  sc start %SERVICE% >nul
+  echo [OK] Heartbeat installed
   exit /b 0
 )
 
-set "SHARE=\\FILESERVER\elk\heartbeat"
-set "MSI=%SHARE%\heartbeat.msi"
-set "CFG=%SHARE%\heartbeat.yml"
-
-set "INSTALL_DIR=C:\Program Files\Heartbeat"
-set "SERVICE=heartbeat"
-
-if not exist "%MSI%" (
-  echo [ERR] heartbeat.msi bulunamadi: %MSI%
-  exit /b 1
-)
-if not exist "%CFG%" (
-  echo [ERR] heartbeat.yml bulunamadi: %CFG%
-  exit /b 2
-)
-
-sc query %SERVICE% >nul 2>&1
-if %errorlevel%==0 (
-  echo [INFO] Heartbeat kurulu. Konfig güncelleniyor...
-
-  copy "%CFG%" "%INSTALL_DIR%\heartbeat.yml" /Y >nul
-
+fc /b "%CFG%" "%CFG_DIR%\heartbeat.yml" >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] Heartbeat configuration changed, restarting the service
+  if not exist "%CFG_DIR%" mkdir "%CFG_DIR%"
+  copy /Y "%CFG%" "%CFG_DIR%\heartbeat.yml" >nul
   sc stop %SERVICE% >nul
+  timeout /t 5 /nobreak >nul
   sc start %SERVICE% >nul
 ) else (
-  echo [INFO] Ilk kurulum yapiliyor...
-
-  msiexec /i "%MSI%" /quiet /norestart
-  
-  copy "%CFG%" "%INSTALL_DIR%\heartbeat.yml" /Y >nul
-  
-  "%INSTALL_DIR%\heartbeat.exe" install
-
-  sc config "%SERVICE%" start= auto >nul
-
-  sc start %SERVICE% >nul
+  echo [OK] Heartbeat is up to date
 )
-
-
-rem --- Kurulum / guncelleme basarili olduysa marker olustur ---
-rem Boylece bir sonraki reboot'ta script hicbir sey yapmadan hemen cikacak
-type nul > "%MARKER%"
-
-echo [OK] Heartbeat hazir.
 exit /b 0
