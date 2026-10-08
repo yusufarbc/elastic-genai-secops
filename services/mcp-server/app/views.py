@@ -1,8 +1,8 @@
 """Masked views of cases for MCP clients.
 
 An MCP client is an LLM, so it gets the same pseudonymized view llm-orchestrator got
-(design rule 3, ROADMAP.md): hosts, users and IPs are replaced with the incident's tokens, also inside
-free text such as the summary. Analyst notes and reviewer names are not exposed.
+(design rule 3, ROADMAP.md): hosts, users and IPs are replaced with the incident's tokens, also
+inside free text such as the summary. Analyst notes and reviewer names are not exposed.
 """
 
 from __future__ import annotations
