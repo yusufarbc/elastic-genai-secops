@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-10-07
 
-**Context:** The source projects used the names Vigil, Sentinel and Elastic-GenAI-SOC. "Sentinel" collides with Microsoft Sentinel and SentinelOne, which are frequently mentioned in detection content.
+**Context:** The source projects used the names Sentinel and Elastic-GenAI-SOC. "Sentinel" collides with Microsoft Sentinel and SentinelOne, which are frequently mentioned in detection content.
 
 **Decision:** The product and repository are named **Elastic-SecOps-Mastery**. Technical identifiers use the `esm` prefix:
 

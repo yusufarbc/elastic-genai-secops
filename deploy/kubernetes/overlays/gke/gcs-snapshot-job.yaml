@@ -41,13 +41,17 @@ spec:
               echo "snapshot repository esm-gcs and policy esm-daily are configured"
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities: { drop: ["ALL"] }
           resources:
             requests: { cpu: 50m, memory: 64Mi }
             limits: { memory: 128Mi }
           volumeMounts:
             - { name: es-ca, mountPath: /etc/esm/es-ca, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
       volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
         - name: es-ca
           secret:
             secretName: esm-es-http-certs-public

@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-10-07
 
-**Context:** The three source projects used MIT (repository root), GPL-3.0 (Elastic-GenAI-SOC) and AGPL-3.0 (Vigil). One repository needs one license, and all three projects have the same copyright holder.
+**Context:** The three source projects used MIT (repository root), GPL-3.0 (Elastic-GenAI-SOC) and AGPL-3.0 (the AI-SOC platform). One repository needs one license, and all three projects have the same copyright holder.
 
 **Alternatives considered:**
 

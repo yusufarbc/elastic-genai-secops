@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 First consolidated version of three earlier projects (an Ubuntu ELK installer, an MCP-based GenAI
-SOC prototype and the Vigil AI-SOC platform).
+SOC prototype and an AI-SOC platform).
 
 ### Added
 
