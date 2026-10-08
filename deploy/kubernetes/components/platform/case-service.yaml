@@ -1,0 +1,62 @@
+# Stateless; cases live in Elasticsearch.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: case-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: case-service }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: case-service, app.kubernetes.io/component: platform }
+    spec:
+      serviceAccountName: esm-platform
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: case-service
+          image: esm/case-service
+          envFrom:
+            - configMapRef: { name: esm-platform-config }
+          env:
+            - name: ELASTIC_PASSWORD
+              valueFrom: { secretKeyRef: { name: esm-secrets, key: ESM_PLATFORM_PASSWORD } }
+            - { name: LISTEN_ADDR, value: ":8002" }
+          ports:
+            - { name: http, containerPort: 8002 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8002 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8002 }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 384Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: es-ca, mountPath: /etc/esm/es-ca, readOnly: true }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: es-ca
+          secret:
+            secretName: esm-es-http-certs-public
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: case-service
+spec:
+  selector: { app.kubernetes.io/name: case-service }
+  ports:
+    - { name: http, port: 8002, targetPort: 8002 }

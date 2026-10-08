@@ -1,0 +1,30 @@
+# onprem: production-shaped cluster on your own Kubernetes, images from GHCR.
+# Logstash is exposed with a LoadBalancer Service (MetalLB, kube-vip or a cloud LB).
+# Set your StorageClass with the commented patch below, otherwise the cluster default is used.
+#
+#   ./deploy/kubernetes/init-secrets.sh onprem
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/kubernetes/overlays/onprem \
+#     | kubectl apply --server-side --force-conflicts -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: esm
+resources:
+  - ../../base
+components:
+  - ../../components/platform
+  - ../../components/production
+
+secretGenerator:
+  - name: esm-secrets
+    namespace: esm
+    envs:
+      - secrets.env
+generatorOptions:
+  disableNameSuffixHash: true
+
+# patches:
+#   - target: { kind: Elasticsearch, name: esm }
+#     patch: |-
+#       - op: add
+#         path: /spec/nodeSets/0/volumeClaimTemplates/0/spec/storageClassName
+#         value: <your-storage-class>

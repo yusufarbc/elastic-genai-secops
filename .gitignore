@@ -6,6 +6,7 @@
 *.pem
 *.p12
 *credentials*.json
+deploy/kubernetes/overlays/*/secrets.env
 service-account*.json
 
 # Agent installers and binaries: download them with

@@ -1,0 +1,53 @@
+# Registers the GCS snapshot repository and a daily snapshot lifecycle policy (ADR-010).
+# Elasticsearch authenticates to GCS with Workload Identity (service account esm-elasticsearch).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: esm-gcs-snapshots
+  namespace: esm
+spec:
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: snapshots
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+          envFrom:
+            - configMapRef: { name: esm-gcs-snapshot-config }
+          env:
+            - name: ES_PASSWORD
+              valueFrom: { secretKeyRef: { name: esm-es-elastic-user, key: elastic } }
+          command: ["bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              C=(curl -sS -f --cacert /etc/esm/es-ca/ca.crt -u "elastic:${ES_PASSWORD}" -H 'Content-Type: application/json')
+              ES=https://esm-es-http:9200
+              until "${C[@]}" -o /dev/null "$ES/_cluster/health?wait_for_status=yellow&timeout=5s"; do sleep 5; done
+              "${C[@]}" -X PUT "$ES/_snapshot/esm-gcs" -d "{\"type\":\"gcs\",\"settings\":{\"bucket\":\"${GCS_BUCKET}\",\"base_path\":\"esm\"}}"
+              "${C[@]}" -X PUT "$ES/_slm/policy/esm-daily" -d "{
+                \"schedule\": \"${SNAPSHOT_SCHEDULE}\",
+                \"name\": \"<esm-{now/d}>\",
+                \"repository\": \"esm-gcs\",
+                \"config\": {\"indices\": [\"logs-*\", \"metrics-*\", \".alerts-security.alerts-*\", \"esm-*\"], \"include_global_state\": false},
+                \"retention\": {\"expire_after\": \"${SNAPSHOT_EXPIRE_AFTER}\", \"min_count\": 7}
+              }"
+              echo "snapshot repository esm-gcs and policy esm-daily are configured"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 128Mi }
+          volumeMounts:
+            - { name: es-ca, mountPath: /etc/esm/es-ca, readOnly: true }
+      volumes:
+        - name: es-ca
+          secret:
+            secretName: esm-es-http-certs-public

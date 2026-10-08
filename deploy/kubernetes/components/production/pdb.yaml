@@ -1,0 +1,11 @@
+# Keep master quorum (2 of 3) during node drains and upgrades (ADR-009).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: esm-es
+  namespace: esm
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      elasticsearch.k8s.elastic.co/cluster-name: esm

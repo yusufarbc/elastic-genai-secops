@@ -67,6 +67,39 @@ jobs:
           cd deploy/compose
           cp .env.example .env && sed -i 's/__GENERATE__/ci-placeholder-0123456789abcdef/' .env
           docker compose -f siem.yml -f platform.yml config --quiet
+      - name: Kubernetes overlays (kustomize + kubeconform, ECK CRD schemas)
+        run: |
+          ECK=3.5.0
+          curl -sSfL "https://download.elastic.co/downloads/eck/${ECK}/crds.yaml" -o /tmp/crds.yaml
+          python - <<'EOF'
+          import json, pathlib, yaml
+          out = pathlib.Path("/tmp/schemas")
+          def strict(n):
+              if isinstance(n, dict):
+                  if n.get("type") == "object" and "properties" in n and "additionalProperties" not in n \
+                          and not n.get("x-kubernetes-preserve-unknown-fields"):
+                      n["additionalProperties"] = False
+                  for v in n.values(): strict(v)
+              elif isinstance(n, list):
+                  for v in n: strict(v)
+              return n
+          for d in yaml.safe_load_all(open("/tmp/crds.yaml")):
+              if not d or d.get("kind") != "CustomResourceDefinition": continue
+              for v in d["spec"]["versions"]:
+                  s = strict(v["schema"]["openAPIV3Schema"]); s.setdefault("properties", {})
+                  s["properties"].update(apiVersion={"type": "string"}, kind={"type": "string"},
+                                         metadata={"type": "object"})
+                  p = out / d["spec"]["group"] / f"{d['spec']['names']['kind'].lower()}_{v['name']}.json"
+                  p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(s))
+          EOF
+          go install github.com/yannh/kubeconform/cmd/kubeconform@v0.6.7
+          for o in lab onprem gke; do
+            sh deploy/kubernetes/init-secrets.sh "$o"
+            kubectl kustomize --load-restrictor LoadRestrictionsNone "deploy/kubernetes/overlays/$o" \
+              | "$(go env GOPATH)/bin/kubeconform" -strict -summary -kubernetes-version 1.31.0 \
+                  -schema-location default \
+                  -schema-location '/tmp/schemas/{{ .Group }}/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json'
+          done
 
   images:
     name: Image · ${{ matrix.service }}
