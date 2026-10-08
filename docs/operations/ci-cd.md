@@ -297,7 +297,7 @@ The pipeline itself is part of the supply chain, so it follows the same rules it
 | --- | --- |
 | Least-privilege token | The workflow default is `contents: read`; each job adds only what it needs (`security-events: write` for SARIF, `packages`/`id-token`/`attestations: write` only in `release`) |
 | No persisted credentials | Every checkout uses `persist-credentials: false`; no job pushes with git |
-| Pinned third-party actions | Pinned to a full commit SHA with the version as a comment; Dependabot updates them in a group |
+| Pinned actions | Every action, first- and third-party, is pinned to a full commit SHA with the version as a comment; Dependabot updates them in a group |
 | Pinned tools | Scanner images and CLI tools use fixed versions (`gitleaks`, `semgrep`, `trivy`, `hadolint`, `actionlint`, ZAP, `govulncheck`, `pip-audit`, `ruff`), so a gate cannot change behaviour without a reviewed pull request |
 | Untrusted input stays data | Branch names and other event fields reach scripts through `env:`, never by `${{ }}` expansion inside `run:` |
 | Keyless signing | cosign uses the workflow's OIDC identity; there are no signing keys to leak |
@@ -335,7 +335,7 @@ review) are set in `pipeline.yml`. Lowering them is a pull request like any othe
 | e2e times out waiting for alerts | Kibana rules run every 5 minutes. Check `stack-logs.txt` in the `e2e-dast-reports` artifact: usually Elasticsearch memory or the `rules` import container. |
 | ZAP job fails | Open `zap-bff.html` in the artifact; each High alert is also printed as an `::error` line. |
 | Merge blocked although `Pipeline gate` is green | The ruleset requires all review conversations to be resolved, and code scanning posts its findings as PR review comments. Fix the finding (the comment then resolves itself) or resolve the conversation with a reason. |
-| CodeQL: "Unpinned tag for a non-immutable Action" | Third-party actions must be pinned to a full commit SHA with the version as a comment (`uses: owner/action@<sha> # vX.Y.Z`). Dependabot updates both. Actions from `actions/*` and `github/*` may use tags. |
+| CodeQL: "Unpinned tag for a non-immutable Action" | Third-party actions must be pinned to a full commit SHA with the version as a comment (`uses: owner/action@<sha> # vX.Y.Z`). Dependabot updates both. This applies to every action, including `actions/*` and `github/*`: Semgrep and Scorecard flag mutable tags anywhere. |
 | Promotion PR blocked by "branch must be up to date" | `production` moved since `staging` was branched (a hotfix). Merge `production` into `staging` first. |
 | Release job: `denied` from GHCR | The package exists but is not linked to this repository. In the package settings, give the repository write access. |
 
