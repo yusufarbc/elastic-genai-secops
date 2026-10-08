@@ -6,12 +6,16 @@
       "privileges": ["read", "view_index_metadata"]
     },
     {
+      "names": ["logs-*-*", "metrics-*-*"],
+      "privileges": ["read", "view_index_metadata"]
+    },
+    {
       "names": ["esm-*"],
       "privileges": ["create_index", "read", "write", "delete", "view_index_metadata"]
     }
   ],
   "metadata": {
-    "description": "Platform services: read Kibana Security alerts, own the esm-* indices (cases, masking maps, LLM audit, state)",
+    "description": "Platform services: read Kibana Security alerts and log/metric data streams (hunts, enrichment context), own the esm-* indices (cases, masking maps, LLM audit, state)",
     "managed_by": "content/bootstrap.sh"
   }
 }

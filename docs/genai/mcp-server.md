@@ -1,98 +1,94 @@
-# Deployment Guide
+[← Back to README](../../README.md)
 
-Follow these steps to deploy the **Elastic-SecOps-Mastery** components completely.
+# MCP server
 
-## Phase 1: Environment Setup
+`services/mcp-server` gives MCP clients (Claude Desktop, Claude Code, other MCP-capable assistants)
+**read-only, masked** access to the platform. Design decisions: [ADR-022](../architecture/adr/022-mcp-server-read-only-masked.md).
 
-### 1. Install Python
-Ensure Python 3.10 or higher is installed on your Windows machine.
-- Download: [Python.org](https://www.python.org/downloads/windows/)
-- **Important**: Check "Add Python to PATH" during installation.
+| Tool | Returns |
+| --- | --- |
+| `list_cases(review_status, limit)` | Cases (pending / approved / rejected / all) with severity, risk, triage status and the masked summary |
+| `get_case(case_id)` | One case: LLM suggestion, rationale, recommended actions, timeline, affected entities (masked) |
+| `alert_statistics(hours)` | Kibana Security alert counts by rule, severity and workflow status |
+| `list_hunts()` | The allow-listed hunting queries |
+| `run_hunt(hunt_id, hours, top)` | Hit count and top values of non-identifying fields for one hunt |
+| `get_defender_status()` | Optional, Windows only (`MCP_ENABLE_DEFENDER=true`): local Microsoft Defender status |
 
-### 2. Clone & Prepare
-Open PowerShell as **Administrator**:
-```powershell
-git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
-cd Elastic-SecOps-Mastery/services/mcp-server
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+What the server deliberately does **not** do:
+
+- No free-form queries. Hunts come from [`content/hunting/hunts.yml`](../../content/hunting/hunts.yml); a hunt may not group by host, user, IP or account fields.
+- No plaintext identifiers. Hosts, users and IPs are replaced with the same tokens the triage LLM saw (`host_1a2b3c`); analyst notes and reviewer names are never returned.
+- No actions. Approving or rejecting a case, starting scans or changing configuration stays with humans in the case API.
+
+## Run it
+
+The compose platform layer starts it on `http://127.0.0.1:8090/mcp` (streamable HTTP). Every request
+needs `Authorization: Bearer <MCP_TOKEN>`; the token is generated into `deploy/compose/.env` by
+`init-env`.
+
+```bash
+cd deploy/compose
+docker compose -f siem.yml -f platform.yml up -d --build
 ```
 
----
+### Claude Code
 
-## Phase 2: Run the MCP Server
-
-### Option A: Temporary (Testing)
-Simply run the script in your terminal.
-```powershell
-python server.py
+```bash
+claude mcp add --transport http esm http://localhost:8090/mcp \
+  --header "Authorization: Bearer <MCP_TOKEN from deploy/compose/.env>"
 ```
-Test it by opening a browser to `http://localhost:8000/docs` (if FastMCP provides Swagger) or verifying the console output.
 
-### Option B: Permanent Service (Recommended)
-To keep the server running even after you close the terminal or reboot:
+### Claude Desktop
 
-**Method 1: Task Scheduler (Native)**
-1.  Open **Task Scheduler**.
-2.  Click **Create Task**.
-3.  **General Tab**:
-    *   Name: `ElasticSOC_MCP_Server`
-    *   Check **"Run with highest privileges"**.
-    *   Check **"Run whether user is logged on or not"**.
-4.  **Triggers Tab**:
-    *   New... -> **At Startup**.
-5.  **Actions Tab**:
-    *   New... -> **Start a program**.
-    *   Program/script: `C:\Path\To\Repo\venv\Scripts\python.exe`
-    *   Add arguments: `C:\Path\To\Repo\src\server.py`
-    *   Start in: `C:\Path\To\Repo\`
-6.  Save and enter your password.
-
----
-
-## Phase 3: Connect your LLM
-
-You need an MCP Client to talk to this server.
-
-### using Claude Desktop (Example)
-If you use the Claude Desktop app, add this to your `claude_desktop_config.json`:
+Claude Desktop starts local (stdio) servers; bridge to the HTTP endpoint with `mcp-remote`
+(requires Node.js). In `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "windows-defender": {
-      "command": "C:\\Path\\To\\Repo\\venv\\Scripts\\python.exe",
-      "args": [
-        "C:\\Path\\To\\Repo\\src\\server.py"
-      ]
+    "esm": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8090/mcp",
+               "--header", "Authorization: Bearer <MCP_TOKEN>"]
     }
   }
 }
 ```
-*Note: Since standard input/output (stdio) is the default for many MCP clients, you might need to adjust `server.py` to use `stdio` transport instead of HTTP (FastAPI) if your client requires it. The current implementation uses FastAPI (HTTP).*
 
-**If your client requires HTTP (SSE):**
-- Configure your client to connect to `http://localhost:8000/sse` (depending on FastMCP default routes).
+### Defender endpoint mode (optional)
 
----
+To read the Defender status of the analyst's own Windows machine, run a second instance locally over
+stdio with `MCP_ENABLE_DEFENDER=true` (Python 3.12+):
 
-
----
-
-## Phase 5: Advanced Telemetry (Optional but Recommended)
-
-To transform your endpoint into a true sensor for the SOC, you should install **Sysmon**.
-This provides detailed logs about Process Creation, Network Connections, and DNS Queries (Event ID 22).
-
-### Automatic Install
-Run the helper script as Administrator:
 ```powershell
-.\scripts\install_sysmon.ps1
+pip install ./services/mcp-server
+$env:MCP_TRANSPORT = "stdio"; $env:MCP_ENABLE_DEFENDER = "true"
+esm-mcp
 ```
 
-### Verification
-1.  Open **Event Viewer**.
-2.  Navigate to `Applications and Services Logs` > `Microsoft` > `Windows` > `Sysmon` > `Operational`.
-3.  You should see events generated by your activity.
+The tool only reads `Get-MpComputerStatus`; scans and settings are not exposed.
 
+## Settings
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MCP_TRANSPORT` | `stdio` (`http` in the image) | `stdio` or `http` |
+| `MCP_TOKEN` | – | Bearer token for `http`, at least 24 characters |
+| `MCP_HOST`, `MCP_PORT` | `0.0.0.0`, `8090` | HTTP listener |
+| `MCP_ALLOWED_HOSTS` | `localhost:*,127.0.0.1:*` | Accepted `Host` headers (DNS-rebinding protection) |
+| `CASE_API_URL` | `http://bff:8080/api` | Case API (bff) |
+| `MASKING_SERVICE_URL` | `http://masking-service:8001` | Source of the incident tokens |
+| `ELASTIC_URL`, `ELASTIC_USER`, `ELASTIC_PASSWORD`, `ELASTIC_CA_CERTS` | | Read access for alert statistics and hunts (`esm_platform` user) |
+| `HUNTS_FILE` | `content/hunting/hunts.yml` | Hunt allow-list |
+| `MCP_ENABLE_DEFENDER` | `false` | Adds `get_defender_status` (Windows only) |
+
+## Test
+
+```bash
+# unit tests
+cd services/mcp-server && python -m pytest -q tests
+# live check with the official MCP client, inside the compose network
+docker run --rm --network esm-siem_default -v "$PWD:/src" -w /src \
+  -e MCP_URL=http://mcp-server:8090/mcp -e MCP_TOKEN=<token> python:3.12-slim \
+  sh -c "pip install -q 'mcp>=1.9,<2' && python tests/e2e/mcp_client_test.py"
+```
