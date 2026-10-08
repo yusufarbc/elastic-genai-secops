@@ -33,7 +33,7 @@ type Client struct {
 func FromEnv() (*Client, error) {
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if caPath := os.Getenv("ELASTIC_CA_CERTS"); caPath != "" {
-		pem, err := os.ReadFile(caPath)
+		pem, err := os.ReadFile(caPath) //nolint:gosec // G304: the CA path is operator configuration, not user input
 		if err != nil {
 			return nil, fmt.Errorf("read ELASTIC_CA_CERTS: %w", err)
 		}

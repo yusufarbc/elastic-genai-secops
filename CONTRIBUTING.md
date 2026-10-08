@@ -4,7 +4,7 @@ Thanks for your interest in Elastic-SecOps-Mastery. Issues and pull requests are
 
 ## Before you start
 
-- Read [CLAUDE.md](CLAUDE.md): it states the architecture rules every change must keep (LLM per
+- Read the design rules in [ROADMAP.md](ROADMAP.md#design-rules): every change must keep them (LLM per
   incident only, masked input, no automatic actions, Basic license only).
 - Check [ROADMAP.md](ROADMAP.md) for planned work, and open an issue before large changes.
 - Record new design decisions as an ADR in [docs/architecture/adr](docs/architecture/adr/README.md).
@@ -44,8 +44,11 @@ python ../../tests/e2e/pipeline_test.py
 
 ## Pull requests
 
+- Branch from `staging` and open the pull request against `staging`; `production` only takes
+  promotion PRs from `staging` (see [docs/operations/ci-cd.md](docs/operations/ci-cd.md)).
 - One topic per pull request, with tests for new behaviour.
-- CI must be green: lint, unit tests, content and manifest validation, image build and Trivy scan.
+- The `Pipeline gate` check must be green: lint, tests, SAST, SCA, IaC, secret, image scans and the
+  end-to-end + DAST run.
 - Describe how you tested the change (unit, compose, Kubernetes), and what you did not test.
 
 By contributing you agree that your contributions are licensed under the [Apache License 2.0](LICENSE).

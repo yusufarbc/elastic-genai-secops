@@ -12,4 +12,4 @@ body:
     id: proposal
     attributes:
       label: Proposal
-      description: Check ROADMAP.md first; mention how it keeps the rules in CLAUDE.md (masked LLM input, no automatic actions, Basic license).
+      description: Check ROADMAP.md first; mention how it keeps the design rules in ROADMAP.md (masked LLM input, no automatic actions, Basic license).

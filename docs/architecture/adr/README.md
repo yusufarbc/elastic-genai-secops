@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Architecture Decision Record (ADR) log for the Elastic-SecOps-Mastery AI-assisted SOC/NOC platform. Each entry records the decision, the alternatives considered, the rationale, open risks, and the date. This is the companion to `CLAUDE.md`; `CLAUDE.md` states the rules, this file explains *why*.
+Architecture Decision Record (ADR) log for the Elastic-SecOps-Mastery AI-assisted SOC/NOC platform. Each entry records the decision, the alternatives considered, the rationale, open risks, and the date. The design rules in `ROADMAP.md` state the rules; this log explains *why*.
 
 Format per entry: **Decision · Status · Date · Context · Alternatives · Rationale · Risks / follow-ups.**
 
@@ -29,6 +29,7 @@ Format per entry: **Decision · Status · Date · Context · Alternatives · Rat
 | [ADR-021](021-naming.md) | Naming: Elastic-SecOps-Mastery and the `esm` prefix |
 | [ADR-022](022-mcp-server-read-only-masked.md) | MCP server is read-only and returns masked data |
 | [ADR-023](023-outbound-integrations.md) | Outbound integrations inform and record, they never act |
+| [ADR-024](024-staging-production-pipeline.md) | `staging` → `production` branch flow and a single DevSecOps pipeline |
 
 ## Open items to resolve (carry forward)
 

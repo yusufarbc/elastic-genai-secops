@@ -26,7 +26,7 @@ secretGenerator:
     envs:
       - secrets.env
 configMapGenerator:
-  # 14-day hot tier in Elasticsearch (CLAUDE.md section 2); long-term retention lives in GCS
+  # 14-day hot tier in Elasticsearch (design rule 8, ROADMAP.md); long-term retention lives in GCS
   - name: esm-siem-config
     namespace: esm
     behavior: merge

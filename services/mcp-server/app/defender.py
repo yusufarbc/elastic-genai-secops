@@ -2,7 +2,7 @@
 
 Enabled with MCP_ENABLE_DEFENDER=true when the server runs on Windows over stdio (for example
 from Claude Desktop). Read-only: scans and configuration changes are deliberately not exposed,
-because LLM output must not trigger actions (CLAUDE.md section 1).
+because LLM output must not trigger actions (design rule 1, ROADMAP.md).
 """
 
 from __future__ import annotations
