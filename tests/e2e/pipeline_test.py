@@ -88,7 +88,7 @@ def main() -> None:
     step(f"case {c['id']}: triage_status={c['triage_status']} severity={c['severity']}")
 
     checks = {
-        "triaged by the (mock) LLM": c["triage_status"] == "triaged",
+        "triaged by the LLM": c["triage_status"] == "triaged",
         "alerts correlated into one incident": c["alert_count"] == 5,
         "host un-masked": c["affected_hosts"] == [HOST],
         "user un-masked": c["affected_users"] == [USER],
