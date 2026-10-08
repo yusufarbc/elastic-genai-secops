@@ -1,8 +1,27 @@
-- pipeline.id: paloalto-pipeline
-  path.config: "/etc/logstash/conf.d/paloalto_syslog.conf"
+# Logstash pipelines for every source in integrations/sources.
+#
+# Both deployment targets place this directory at /etc/logstash/conf.d:
+#   - bare metal: deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh copies it there
+#   - containers: deploy/compose mounts it read-only at the same path
+# Remove a block to disable a source.
 
-- pipeline.id: winlogbeat-pipeline
-  path.config: "/etc/logstash/conf.d/winlogbeat.conf"
+- pipeline.id: syslog
+  path.config: "/etc/logstash/conf.d/syslog/logstash.conf"
 
-- pipeline.id: metric-heartbeat-pipeline
-  path.config: "/etc/logstash/conf.d/metric_heartbeat.conf"
+- pipeline.id: windows
+  path.config: "/etc/logstash/conf.d/windows/logstash.conf"
+
+- pipeline.id: fortigate
+  path.config: "/etc/logstash/conf.d/fortigate/logstash.conf"
+
+- pipeline.id: paloalto-syslog
+  path.config: "/etc/logstash/conf.d/paloalto/logstash-syslog.conf"
+
+- pipeline.id: paloalto-beats
+  path.config: "/etc/logstash/conf.d/paloalto/logstash-beats.conf"
+
+- pipeline.id: kaspersky
+  path.config: "/etc/logstash/conf.d/kaspersky/logstash.conf"
+
+- pipeline.id: beats-health
+  path.config: "/etc/logstash/conf.d/beats-health/logstash.conf"

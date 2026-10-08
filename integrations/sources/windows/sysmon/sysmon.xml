@@ -1,93 +1,127 @@
+<!--
+  Elastic-SecOps-Mastery Sysmon configuration (Sysmon 15, schema 4.90)
+
+  Built to feed the detection rules in content/detection-rules:
+  - Process creation is logged for every process. Built-in Windows binaries are what attackers
+    abuse (cmd, powershell, rundll32, mshta, wmic, sc ...), so C:\Windows is NOT excluded.
+  - Network connections and DNS queries are logged for script hosts, LOLBins and binaries
+    running from user-writable paths, which keeps the volume manageable.
+  - Process access is logged for LSASS only (credential dumping, rule WIN-004).
+
+  For broader coverage consider olafhartong/sysmon-modular or SwiftOnSecurity/sysmon-config.
+  Install: sysmon64.exe -accepteula -i sysmon.xml    Update: sysmon64.exe -c sysmon.xml
+-->
 <Sysmon schemaversion="4.90">
-  <!-- Genel ayarlar -->
   <HashAlgorithms>sha256</HashAlgorithms>
   <CheckRevocation>false</CheckRevocation>
-  <DnsLookup>false</DnsLookup> <!-- 22-DNS zaten kaydediliyor; ek DNS çözümü kapalı -->
+  <DnsLookup>false</DnsLookup>
 
   <EventFiltering>
 
-    <!-- (1) Process Create: çekirdek görünürlük -->
-    <ProcessCreate onmatch="exclude">
-      <!-- Gürültüyü azalt: bilinen sistem/yazılım yolları -->
-      <Image condition="begin with">C:\Windows\</Image>
-      <Image condition="begin with">C:\Program Files\</Image>
-      <Image condition="begin with">C:\Program Files (x86)\</Image>
-      <!-- İsterseniz imzalı imzasız ayrımı ekleyebilirsiniz:
-           <Signed condition="is">true</Signed> -->
-    </ProcessCreate>
+    <!-- Event 1: process creation, everything -->
+    <RuleGroup name="ProcessCreate" groupRelation="or">
+      <ProcessCreate onmatch="exclude" />
+    </RuleGroup>
 
-    <!-- (3) Network Connect: başlangıçta sistem süreçlerini dışla -->
-    <NetworkConnect onmatch="exclude">
-      <Image condition="begin with">C:\Windows\</Image>
-      <Image condition="begin with">C:\Program Files\</Image>
-      <Image condition="begin with">C:\Program Files (x86)\</Image>
-      <!-- Aşırı hacim yaratır; kademeli sıkılaştırın -->
-    </NetworkConnect>
+    <!-- Event 3: network connections from script hosts, LOLBins and user-writable paths -->
+    <RuleGroup name="NetworkConnect" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <Image condition="end with">\powershell.exe</Image>
+        <Image condition="end with">\pwsh.exe</Image>
+        <Image condition="end with">\cmd.exe</Image>
+        <Image condition="end with">\rundll32.exe</Image>
+        <Image condition="end with">\regsvr32.exe</Image>
+        <Image condition="end with">\mshta.exe</Image>
+        <Image condition="end with">\wscript.exe</Image>
+        <Image condition="end with">\cscript.exe</Image>
+        <Image condition="end with">\certutil.exe</Image>
+        <Image condition="end with">\bitsadmin.exe</Image>
+        <Image condition="end with">\msbuild.exe</Image>
+        <Image condition="end with">\installutil.exe</Image>
+        <Image condition="end with">\wmic.exe</Image>
+        <Image condition="contains">\AppData\</Image>
+        <Image condition="contains">\Temp\</Image>
+        <Image condition="begin with">C:\Users\Public\</Image>
+        <Image condition="begin with">C:\ProgramData\</Image>
+        <DestinationPort condition="is">3389</DestinationPort>
+        <DestinationPort condition="is">445</DestinationPort>
+        <DestinationPort condition="is">5985</DestinationPort>
+        <DestinationPort condition="is">5986</DestinationPort>
+      </NetworkConnect>
+    </RuleGroup>
 
-    <!-- (11) File Create: yürütülebilir & script uzantıları -->
-    <FileCreate onmatch="include">
-      <TargetFilename condition="end with">.exe</TargetFilename>
-      <TargetFilename condition="end with">.dll</TargetFilename>
-      <TargetFilename condition="end with">.sys</TargetFilename>
-      <TargetFilename condition="end with">.ps1</TargetFilename>
-      <TargetFilename condition="end with">.bat</TargetFilename>
-      <TargetFilename condition="end with">.vbs</TargetFilename>
-      <TargetFilename condition="end with">.js</TargetFilename>
-      <TargetFilename condition="end with">.hta</TargetFilename>
-      <TargetFilename condition="end with">.lnk</TargetFilename>
-    </FileCreate>
+    <!-- Event 6: drivers not signed by Microsoft -->
+    <RuleGroup name="DriverLoad" groupRelation="or">
+      <DriverLoad onmatch="exclude">
+        <Signature condition="begin with">Microsoft</Signature>
+      </DriverLoad>
+    </RuleGroup>
 
-    <!-- (22) DNS Query: başlangıçta sistem süreçlerini dışla -->
-    <DnsQuery onmatch="exclude">
-      <Image condition="begin with">C:\Windows\</Image>
-      <Image condition="begin with">C:\Program Files\</Image>
-      <Image condition="begin with">C:\Program Files (x86)\</Image>
-    </DnsQuery>
+    <!-- Event 7: image loads are too noisy for the default profile -->
+    <RuleGroup name="ImageLoad" groupRelation="or">
+      <ImageLoad onmatch="include" />
+    </RuleGroup>
 
-    <!-- (7) Image Load: ileride açın, çok gürültü üretir -->
-    <ImageLoad onmatch="exclude">
-      <ImageLoaded condition="begin with">C:\Windows\</ImageLoaded>
-      <ImageLoaded condition="begin with">C:\Program Files\</ImageLoaded>
-      <ImageLoaded condition="begin with">C:\Program Files (x86)\</ImageLoaded>
-    </ImageLoad>
+    <!-- Event 10: access to LSASS -->
+    <RuleGroup name="ProcessAccess" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <TargetImage condition="end with">\lsass.exe</TargetImage>
+      </ProcessAccess>
+    </RuleGroup>
 
-    <!-- (10) Process Access: EDR-benzeri; önce kapalı tutup sonra açın -->
-    <ProcessAccess onmatch="exclude">
-      <SourceImage condition="begin with">C:\Windows\</SourceImage>
-      <SourceImage condition="begin with">C:\Program Files\</SourceImage>
-      <SourceImage condition="begin with">C:\Program Files (x86)\</SourceImage>
-    </ProcessAccess>
+    <!-- Event 11: executable and script files written to disk -->
+    <RuleGroup name="FileCreate" groupRelation="or">
+      <FileCreate onmatch="include">
+        <TargetFilename condition="end with">.exe</TargetFilename>
+        <TargetFilename condition="end with">.dll</TargetFilename>
+        <TargetFilename condition="end with">.sys</TargetFilename>
+        <TargetFilename condition="end with">.ps1</TargetFilename>
+        <TargetFilename condition="end with">.bat</TargetFilename>
+        <TargetFilename condition="end with">.cmd</TargetFilename>
+        <TargetFilename condition="end with">.vbs</TargetFilename>
+        <TargetFilename condition="end with">.js</TargetFilename>
+        <TargetFilename condition="end with">.hta</TargetFilename>
+        <TargetFilename condition="end with">.lnk</TargetFilename>
+        <TargetFilename condition="end with">.dmp</TargetFilename>
+        <TargetFilename condition="contains">\Start Menu\Programs\Startup\</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
 
-    <!-- (12/13/14) Registry: kalıcılık noktaları -->
-    <RegistryEvent onmatch="include">
-      <!-- 12=CreateKey, 13=Value Set, 14=DeleteValue -->
-      <TargetObject condition="contains">\Software\Microsoft\Windows\CurrentVersion\Run</TargetObject>
-      <TargetObject condition="contains">\Software\Microsoft\Windows\CurrentVersion\RunOnce</TargetObject>
-      <TargetObject condition="contains">\Software\Microsoft\Windows\CurrentVersion\Policies\System\Scripts</TargetObject>
-      <TargetObject condition="contains">\System\CurrentControlSet\Services\</TargetObject>
-      <!-- Gerekirse whitelist ekleyin -->
-    </RegistryEvent>
+    <!-- Events 12/13/14: persistence and privilege-escalation registry locations -->
+    <RuleGroup name="RegistryEvent" groupRelation="or">
+      <RegistryEvent onmatch="include">
+        <TargetObject condition="contains">\CurrentVersion\Run</TargetObject>
+        <TargetObject condition="contains">\CurrentVersion\Policies\System\Scripts</TargetObject>
+        <TargetObject condition="contains">\CurrentVersion\Image File Execution Options\</TargetObject>
+        <TargetObject condition="contains">\CurrentVersion\Winlogon\</TargetObject>
+        <TargetObject condition="contains">\Classes\ms-settings\shell\open\command</TargetObject>
+        <TargetObject condition="contains">\CurrentControlSet\Services\</TargetObject>
+        <TargetObject condition="contains">\Windows Defender\Exclusions\</TargetObject>
+      </RegistryEvent>
+    </RuleGroup>
 
-    <!-- (19/20/21) WMI: kalıcılık / kötüye kullanım -->
-    <WmiEvent onmatch="include">
-      <Operation condition="is">Created</Operation>
-      <Operation condition="is">Deleted</Operation>
-      <Operation condition="is">Modified</Operation>
-    </WmiEvent>
+    <!-- Events 19/20/21: WMI event subscriptions (persistence) -->
+    <RuleGroup name="WmiEvent" groupRelation="or">
+      <WmiEvent onmatch="exclude" />
+    </RuleGroup>
 
-    <!-- (23) File Delete (archived): isterseniz dahil edin; disk maliyeti var -->
-    <!--
-    <FileDelete onmatch="include">
-      <Image condition="exclude"></Image>
-    </FileDelete>
-    -->
+    <!-- Event 22: DNS queries from the same process set as network connections -->
+    <RuleGroup name="DnsQuery" groupRelation="or">
+      <DnsQuery onmatch="include">
+        <Image condition="end with">\powershell.exe</Image>
+        <Image condition="end with">\pwsh.exe</Image>
+        <Image condition="end with">\rundll32.exe</Image>
+        <Image condition="end with">\regsvr32.exe</Image>
+        <Image condition="end with">\mshta.exe</Image>
+        <Image condition="end with">\wscript.exe</Image>
+        <Image condition="end with">\cscript.exe</Image>
+        <Image condition="end with">\certutil.exe</Image>
+        <Image condition="end with">\bitsadmin.exe</Image>
+        <Image condition="contains">\AppData\</Image>
+        <Image condition="contains">\Temp\</Image>
+        <Image condition="begin with">C:\Users\Public\</Image>
+      </DnsQuery>
+    </RuleGroup>
 
-    <!-- (6) Driver Load: Microsoft imzası dışındakileri kaydetmek için -->
-    <DriverLoad onmatch="exclude">
-      <Signature condition="contains">Microsoft</Signature>
-      <SignatureStatus condition="is">Valid</SignatureStatus>
-    </DriverLoad>
-
-    <!-- (2) File Creation Time, (5) Process Terminate vb. başlangıçta gerekmez -->
   </EventFiltering>
 </Sysmon>
