@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-10-08
 
-**Context:** The Elastic-GenAI-SOC prototype exposed an MCP server that ran arbitrary Elasticsearch queries, started Defender scans through `shell=True` PowerShell, and had no authentication. An MCP client is itself an LLM, often a hosted one, so everything the server returns leaves the platform and is attacker-influenced input for that model (CLAUDE.md sections 5 and 6).
+**Context:** The Elastic-GenAI-SOC prototype exposed an MCP server that ran arbitrary Elasticsearch queries, started Defender scans through `shell=True` PowerShell, and had no authentication. An MCP client is itself an LLM, often a hosted one, so everything the server returns leaves the platform and is attacker-influenced input for that model (design rules 3 and 4, ROADMAP.md).
 
 **Decision:**
 

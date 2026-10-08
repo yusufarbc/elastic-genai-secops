@@ -1,3 +1,5 @@
+<!-- Target `staging`. Only promotion PRs from `staging` (or hotfix/*) go into `production`. -->
+
 ## Summary
 
 <!-- What changes and why. Link the issue or ROADMAP item. -->
@@ -12,6 +14,6 @@
 
 ## Checklist
 
-- [ ] Keeps the rules in CLAUDE.md (masked LLM input, no automatic actions, Basic license only)
+- [ ] Keeps the design rules in ROADMAP.md (masked LLM input, no automatic actions, Basic license only)
 - [ ] Contracts changed in both Go and Python, if any
 - [ ] Docs, ROADMAP or ADR updated where needed

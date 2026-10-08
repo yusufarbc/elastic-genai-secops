@@ -88,7 +88,7 @@ class MaskedIncident(BaseModel):
 
 
 class TriageDecision(BaseModel):
-    """Schema-validated LLM suggestion. Never an action trigger (CLAUDE.md section 6)."""
+    """Schema-validated LLM suggestion. Never an action trigger (design rule 4, ROADMAP.md)."""
 
     incident_id: str
     model_id: str

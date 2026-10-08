@@ -1,6 +1,6 @@
 """MCP tools. All read-only: nothing here changes a case or touches an endpoint.
 
-Analyst decisions (approve/reject) stay with humans in the case API (CLAUDE.md section 1).
+Analyst decisions (approve/reject) stay with humans in the case API (design rule 1, ROADMAP.md).
 """
 
 from __future__ import annotations

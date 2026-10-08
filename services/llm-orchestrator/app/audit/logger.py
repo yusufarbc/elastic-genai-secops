@@ -1,4 +1,4 @@
-"""Audit log for every LLM call (CLAUDE.md section 6).
+"""Audit log for every LLM call (design rule 4, ROADMAP.md).
 
 Each call is logged to stdout and, when ELASTIC_URL is set, indexed into esm-llm-audit:
 prompt hash, full masked prompt, response, provider, model, token usage, latency, outcome

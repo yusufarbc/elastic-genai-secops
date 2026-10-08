@@ -40,7 +40,7 @@ flowchart LR
     MCP[mcp-server] -.->|read-only, masked| BFF
 ```
 
-Design rules (see [CLAUDE.md](CLAUDE.md) and the [ADRs](docs/architecture/adr/README.md)):
+Design rules (see [ROADMAP.md](ROADMAP.md#design-rules) and the [ADRs](docs/architecture/adr/README.md)):
 one LLM call per incident, never per alert; only masked data reaches the LLM; LLM output is
 schema-validated JSON and every call is audited; only Basic-tier Elastic features.
 
@@ -127,7 +127,7 @@ See [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md) for ECK insta
 - Components: [Elasticsearch](docs/components/elasticsearch.md) · [Kibana](docs/components/kibana.md) · [Logstash](docs/components/logstash.md)
 - Integrations: [log sources](integrations/sources/README.md) · [Windows endpoints (GPO)](docs/integrations/windows-endpoints.md) · [Windows audit policy](docs/integrations/windows-audit-policy.md) · [notifications, ticketing, threat intel](docs/integrations/outbound.md)
 - GenAI: [triage pipeline](docs/genai/triage-pipeline.md) · [MCP server](docs/genai/mcp-server.md)
-- Operations: [troubleshooting](docs/operations/troubleshooting.md)
+- Operations: [troubleshooting](docs/operations/troubleshooting.md) · [CI/CD and DevSecOps pipeline](docs/operations/ci-cd.md)
 - Deep dives: [history](docs/deep-dives/history-and-evolution.md) · [Elasticsearch internals](docs/deep-dives/elasticsearch-internals.md) · [ingestion](docs/deep-dives/ingestion-architecture.md) · [Kibana internals](docs/deep-dives/kibana-internals.md) · [security architecture](docs/deep-dives/security-architecture.md) · [comparative analysis](docs/deep-dives/comparative-analysis.md)
 
 ## Contributing and security

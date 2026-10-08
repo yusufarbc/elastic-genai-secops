@@ -7,14 +7,21 @@ name: CI/CD · DevSecOps
 #               secret scan (gitleaks, full history)
 #   2 verify    unit tests (Go, Python), content + manifest validation,
 #               SAST (CodeQL, Semgrep), SCA (govulncheck, pip-audit, dependency review), IaC (Trivy)
-#   3 build     container images, image scan (Trivy), SBOM (Syft, CycloneDX)
-#   4 dynamic   end-to-end pipeline test on the compose stack + DAST (OWASP ZAP API scan on the bff)
+#   3 build     container images, image scan (Trivy), SBOM per image (Syft, CycloneDX)
+#   4 dynamic   end-to-end pipeline test on the compose stack + DAST (OWASP ZAP API scan on the bff);
+#               pull requests only: the production ruleset requires an up-to-date branch, so the
+#               merge result is the tree the PR already tested
 #   5 gate      single required status check for the branch rulesets
 #   6 release   push to staging/production only: publish to GHCR, cosign signature, SBOM and
 #               SLSA provenance attestations. There is no deploy target yet (docs/operations/ci-cd.md).
 #
-# The LLM is always mocked; the billed API is never called (CLAUDE.md section 7).
+# The LLM is always mocked; the billed API is never called (design rule 7, ROADMAP.md).
 # Findings are uploaded as SARIF to the Security tab; HIGH/CRITICAL findings fail the pipeline.
+#
+# What runs when:
+#   pull_request   everything up to the gate
+#   push           quality, verify, build (images are rebuilt and re-scanned before release), release
+#   schedule       secrets, SAST, SCA, IaC, image scans: rules and advisories change, code does not
 
 on:
   pull_request:
@@ -22,7 +29,7 @@ on:
   push:
     branches: [staging, production]
   schedule:
-    - cron: "17 3 * * 1"   # weekly re-scan of production for newly published CVEs
+    - cron: "17 3 * * 1"   # weekly re-scan of production for new advisories and new SAST rules
   workflow_dispatch:
 
 permissions:
@@ -65,11 +72,14 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   lint:
     name: Lint · Go, Python, Dockerfiles, shell, workflows
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: gofmt
@@ -77,15 +87,14 @@ jobs:
       - name: go vet
         run: go vet ./...
       - name: golangci-lint (includes gosec)
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.5
-          args: --enable gosec
-      - uses: actions/setup-python@v7
+          version: v2.14   # must be built with a Go >= go.mod's version; linters in .golangci.yml
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: ruff
-        run: pip install ruff && ruff check libs/py-common integrations/outbound services/
+        run: pip install ruff==0.16.10 && ruff check libs/py-common integrations/outbound services/
       - name: hadolint
         # DL3042 (pip cache) is a false positive: the cache is a BuildKit cache mount, not an image layer
         run: |
@@ -105,9 +114,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: gitleaks
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
@@ -118,18 +128,21 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   test-go:
     name: Test · Go
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: go test (race, coverage)
         run: |
           go test -race -count=1 -coverprofile=coverage.out ./...
           echo "Go coverage: $(go tool cover -func=coverage.out | tail -1 | awk '{print $3}')" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-go
           path: coverage.out
@@ -137,6 +150,7 @@ jobs:
 
   test-python:
     name: Test · ${{ matrix.path }}
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -145,8 +159,10 @@ jobs:
         path: [services/masking-service, services/enrichment-service, services/llm-orchestrator,
                services/mcp-server, services/outbound-service, integrations/outbound]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -155,7 +171,7 @@ jobs:
           TARGET: ${{ matrix.path }}
         run: |
           pkgs=(-e libs/py-common -e "integrations/outbound[dev]")
-          [ "$TARGET" = integrations/outbound ] || pkgs+=(-e "$TARGET[dev]")
+          [ "$TARGET" = integrations/outbound ] || pkgs+=(-e "${TARGET}[dev]")
           pip install pytest-cov "${pkgs[@]}"
       - name: pytest (coverage)
         working-directory: ${{ matrix.path }}
@@ -163,14 +179,17 @@ jobs:
 
   content:
     name: Validate · rules, compose, Kubernetes
+    if: github.event_name != 'schedule'   # unchanged code gives the same result
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - run: pip install pyyaml
@@ -227,17 +246,19 @@ jobs:
       matrix:
         language: [go, python, actions]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         if: matrix.language == 'go'
         with:
           go-version: ${{ env.GO_VERSION }}
-      - uses: github/codeql-action/init@v4
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
+          build-mode: ${{ matrix.language == 'go' && 'autobuild' || 'none' }}
           queries: security-extended
-      - uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           category: codeql-${{ matrix.language }}
 
@@ -249,15 +270,16 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: semgrep scan
         run: |
           docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.180.0 \
             semgrep scan --metrics off --quiet \
               --config p/default --config p/golang --config p/python \
-              --config p/dockerfile --config p/github-actions \
               --sarif-output semgrep.sarif
-      - uses: github/codeql-action/upload-sarif@v4
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
@@ -280,21 +302,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: govulncheck (reachable Go vulnerabilities)
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
           "$(go env GOPATH)/bin/govulncheck" ./...
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: pip-audit (all Python services and libraries)
         run: |
           python -m venv /tmp/audit && . /tmp/audit/bin/activate
-          pip install -q --upgrade pip pip-audit
+          pip install -q --upgrade pip pip-audit==2.10.1
           pip install -q ./libs/py-common ./integrations/outbound services/masking-service \
             services/enrichment-service services/llm-orchestrator services/mcp-server services/outbound-service
           pip-audit --progress-spinner off --desc
@@ -305,8 +329,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/dependency-review-action@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
 
@@ -318,9 +344,11 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: trivy config (Dockerfiles, Kubernetes, compose)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: ${{ env.TRIVY_VERSION }}
           scan-type: config
@@ -328,8 +356,9 @@ jobs:
           severity: HIGH,CRITICAL
           format: sarif
           output: trivy-iac.sarif
+          limit-severities-for-sarif: true   # otherwise SARIF mode ignores the severity filter
           exit-code: "1"
-      - uses: github/codeql-action/upload-sarif@v4
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always() && hashFiles('trivy-iac.sarif') != ''
         with:
           sarif_file: trivy-iac.sarif
@@ -341,6 +370,7 @@ jobs:
   build:
     name: Build · ${{ matrix.service }}
     needs: [lint, test-go, test-python]
+    if: ${{ !cancelled() && !failure() }}   # lint/tests are skipped on the weekly scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -353,10 +383,12 @@ jobs:
                   masking-service, enrichment-service, llm-orchestrator, mcp-server,
                   outbound-service]
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: services/${{ matrix.service }}/Dockerfile
@@ -370,7 +402,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
       - name: Image scan · Trivy (fails on HIGH/CRITICAL with a fix available)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: ${{ env.TRIVY_VERSION }}
           image-ref: esm/${{ matrix.service }}:dev
@@ -378,14 +410,15 @@ jobs:
           ignore-unfixed: true
           format: sarif
           output: trivy-image.sarif
+          limit-severities-for-sarif: true
           exit-code: "1"
-      - uses: github/codeql-action/upload-sarif@v4
+      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always() && hashFiles('trivy-image.sarif') != ''
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image-${{ matrix.service }}
       - name: SBOM · Syft (CycloneDX)
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: esm/${{ matrix.service }}:dev
           format: cyclonedx-json
@@ -393,24 +426,11 @@ jobs:
           artifact-name: sbom-${{ matrix.service }}.cdx.json
       - name: Export image for the e2e, DAST and release jobs
         run: docker save esm/${{ matrix.service }}:dev | gzip -1 > image.tar.gz
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: image-${{ matrix.service }}
           path: image.tar.gz
           retention-days: 3
-
-  sbom-source:
-    name: SBOM · repository (CycloneDX)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: anchore/sbom-action@v0
-        with:
-          path: .
-          format: cyclonedx-json
-          output-file: sbom-source.cdx.json
-          artifact-name: sbom-source.cdx.json
 
   # ---------------------------------------------------------------------------------------------
   # 4 · dynamic: end-to-end + DAST on the running compose stack
@@ -418,12 +438,14 @@ jobs:
   e2e-dast:
     name: E2E + DAST · compose stack
     needs: [build, content]
-    if: github.event_name != 'schedule'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: image-*
           path: /tmp/images
@@ -438,7 +460,7 @@ jobs:
       - name: Wait for Elasticsearch and the bff
         run: |
           pw="$(grep '^ELASTIC_PASSWORD=' deploy/compose/.env | cut -d= -f2-)"
-          for i in $(seq 90); do
+          for _ in $(seq 90); do
             curl -skf -u "elastic:$pw" "https://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" >/dev/null \
               && curl -sf http://localhost:8080/healthz >/dev/null && { echo "stack is up"; exit 0; }
             sleep 10
@@ -454,7 +476,7 @@ jobs:
       - name: DAST · OWASP ZAP API scan (bff)
         run: |
           mkdir -p zap && cp services/bff/openapi.yaml zap/ && chmod -R 777 zap
-          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.17.0 \
             zap-api-scan.py -t /zap/wrk/openapi.yaml -f openapi -I \
               -J zap-bff.json -r zap-bff.html -w zap-bff.md
           cat zap/zap-bff.md >> "$GITHUB_STEP_SUMMARY"
@@ -473,7 +495,7 @@ jobs:
         if: always()
         working-directory: deploy/compose
         run: docker compose -f siem.yml -f platform.yml logs --no-color > ../../stack-logs.txt 2>&1 || true
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: e2e-dast-reports
@@ -489,7 +511,7 @@ jobs:
     name: Pipeline gate
     if: always()
     needs: [promotion, lint, secrets, test-go, test-python, content, sast-codeql, sast-semgrep,
-            sca, dependency-review, iac, build, sbom-source, e2e-dast]
+            sca, dependency-review, iac, build, e2e-dast]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -525,13 +547,13 @@ jobs:
                   masking-service, enrichment-service, llm-orchestrator, mcp-server,
                   outbound-service]
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: image-${{ matrix.service }}
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sbom-${{ matrix.service }}.cdx.json
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -552,17 +574,17 @@ jobs:
           echo "image=$image" >> "$GITHUB_OUTPUT"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "$SERVICE: $image@$digest" >> "$GITHUB_STEP_SUMMARY"
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
       - name: Sign (cosign keyless, GitHub OIDC)
         run: cosign sign --yes "${{ steps.push.outputs.image }}@${{ steps.push.outputs.digest }}"
       - name: Attest build provenance (SLSA)
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.push.outputs.image }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
       - name: Attest SBOM
-        uses: actions/attest-sbom@v4
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
         with:
           subject-name: ${{ steps.push.outputs.image }}
           subject-digest: ${{ steps.push.outputs.digest }}

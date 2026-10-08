@@ -9,12 +9,12 @@ You will get an acknowledgement within a week.
 
 ## Supported versions
 
-Only the `main` branch receives fixes until the first tagged release.
+Only the `production` branch receives fixes until the first tagged release.
 
 ## Security model in short
 
 - The LLM receives only masked, curated incident data and can never trigger an action; analysts
-  approve or reject every case (see [CLAUDE.md](CLAUDE.md) and ADR-001 to ADR-004, ADR-022, ADR-023).
+  approve or reject every case (see the [design rules](ROADMAP.md#design-rules) and ADR-001 to ADR-004, ADR-022, ADR-023).
 - `masking-service` is the only holder of plaintext reverse maps. Restrict network access to it.
 - Kibana, the bff API and the Beats inputs are served without TLS by default; put them behind TLS
   and network restrictions before production use (listed in [ROADMAP.md](ROADMAP.md)).
