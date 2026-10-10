@@ -11,7 +11,7 @@ dependencies = [
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "pydantic>=2.7",
-    "structlog>=24.2",
+    "structlog>=26.1.0",
     "elasticsearch[async]>=8.13,<9",
 ]
 
