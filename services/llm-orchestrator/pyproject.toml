@@ -10,11 +10,11 @@ dependencies = [
     "esm-common",
     "httpx>=0.28.1",
     "pydantic>=2.7",
-    "structlog>=24.2",
+    "structlog>=26.1.0",
 ]
 
 [project.optional-dependencies]
-vertex = ["google-cloud-aiplatform>=1.54"]
+vertex = ["google-cloud-aiplatform>=2.4.0"]
 dev = ["pytest>=9.1.1", "pytest-asyncio>=1.4.0"]
 
 [tool.setuptools.packages.find]

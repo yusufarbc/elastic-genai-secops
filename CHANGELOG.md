@@ -8,12 +8,20 @@ All notable changes to this project are documented here. The format follows
 First consolidated version of three earlier projects (an Ubuntu ELK installer, an MCP-based GenAI
 SOC prototype and an AI-SOC platform).
 
+### Fixed
+
+- Repository links, clone instructions and README badge point to the renamed repository
+  (`elastic-genai-secops`), its `production` branch and the current pipeline workflow.
+- README architecture diagram redrawn top to bottom in four layers; it was one row of 15 boxes
+  and unreadable at GitHub's page width.
+
 ### Changed
 
 - **CI/CD**: one DevSecOps pipeline for the `staging` → `production` flow (ADR-024), sized for the
   project (ADR-026): golangci-lint with gosec, gitleaks, CodeQL, govulncheck, pip-audit, dependency
   review and Trivy IaC on every change; Trivy image scans weekly; the e2e test on promotion PRs.
   Semgrep, the OWASP ZAP scan, SBOMs, image signing and the Scorecard workflow were removed.
+- Relicensed under Apache-2.0 (ADR-020); identifiers renamed to the `esm` prefix (ADR-021).
 
 ### Added
 
@@ -34,10 +42,10 @@ SOC prototype and an AI-SOC platform).
 - **CI**: Go and Python lint/tests, rule and manifest validation (kubeconform with ECK schemas),
   shellcheck, image builds with Trivy, GHCR publishing from `production`.
 - End-to-end tests for the pipeline and the MCP server; architecture decision records ADR-001 to ADR-023.
-
-### Changed
-
-- Relicensed under Apache-2.0 (ADR-020); identifiers renamed to the `esm` prefix (ADR-021).
+- **Reverse-map lifecycle** (ADR-025): case-service deletes an incident's masking map after the
+  analyst review; masking-service purges maps older than `MASKING_MAP_TTL_HOURS` (default 14 days).
+  mcp-server reads display tokens from the new, stateless `POST /tokens` endpoint, so viewing a case
+  no longer writes plaintext back into a map.
 
 ### Security
 

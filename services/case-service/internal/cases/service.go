@@ -136,6 +136,11 @@ func (s *Service) Review(ctx context.Context, id string, rv Review) (*Case, erro
 	if err := s.publish(ctx, contracts.CaseEventReviewed, msgID, c); err != nil && s.Log != nil {
 		s.Log.Error("case event publish failed", "case_id", c.ID, "error", err)
 	}
+	// The stored case already holds the unmasked identifiers, so the reverse map is no longer
+	// needed (design rule 3). masking-service purges leftover maps after its TTL.
+	if err := s.Unmasker.DeleteMap(ctx, c.IncidentID); err != nil && s.Log != nil {
+		s.Log.Warn("reverse map delete failed", "incident_id", c.IncidentID, "error", err)
+	}
 	return c, nil
 }
 
