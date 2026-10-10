@@ -311,7 +311,7 @@ the code as possible, with a reason that a reviewer can check:
 
 | Tool | Suppression |
 | --- | --- |
-| gitleaks | add the fingerprint it prints to `.gitleaksignore`, with a comment |
+| gitleaks | add the fingerprint it prints to `.gitleaksignore`, with a comment. Fingerprints include the commit SHA, so re-map them after a history rewrite |
 | golangci-lint / gosec | `//nolint:<linter> // reason` on the line, or a rule in `.golangci.yml` |
 | ruff | `# noqa: <code>` on the line, or the service's `pyproject.toml` |
 | hadolint | `# hadolint ignore=<rule>` above the instruction |
