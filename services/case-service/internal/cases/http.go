@@ -61,7 +61,7 @@ func Handler(svc *Service, log *slog.Logger) http.Handler {
 			log.Error("review case", "error", err)
 			writeError(w, http.StatusBadGateway, "could not update case")
 		default:
-			log.Info("case reviewed", "case_id", logSafe(c.ID), "status", c.ReviewStatus,
+			log.Info("case reviewed", "case_id", logSafe(c.ID), "status", logSafe(c.ReviewStatus),
 				"analyst", logSafe(c.ReviewedBy))
 			writeJSON(w, http.StatusOK, c)
 		}
