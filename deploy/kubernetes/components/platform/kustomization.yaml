@@ -45,31 +45,31 @@ configMapGenerator:
 
 images:
   - name: esm/detection-service
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/detection-service
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/detection-service
     newTag: latest
   - name: esm/alert-gateway
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/alert-gateway
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/alert-gateway
     newTag: latest
   - name: esm/enrichment-service
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/enrichment-service
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/enrichment-service
     newTag: latest
   - name: esm/masking-service
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/masking-service
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/masking-service
     newTag: latest
   - name: esm/llm-orchestrator
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/llm-orchestrator
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/llm-orchestrator
     newTag: latest
   - name: esm/case-service
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/case-service
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/case-service
     newTag: latest
   - name: esm/bff
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/bff
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/bff
     newTag: latest
   - name: esm/mcp-server
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/mcp-server
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/mcp-server
     newTag: latest
   - name: esm/outbound-service
-    newName: ghcr.io/yusufarbc/elastic-secops-mastery/outbound-service
+    newName: ghcr.io/yusufarbc/elastic-genai-secops/outbound-service
     newTag: latest
 
 # Fixed names: ECK custom resources (Logstash pipelinesRef, podTemplate env) are not rewritten

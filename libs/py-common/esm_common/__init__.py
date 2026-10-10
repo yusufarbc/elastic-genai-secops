@@ -1,1 +1,1 @@
-"""Shared code for Elastic-SecOps-Mastery Python services."""
+"""Shared code for Elastic GenAI SecOps Python services."""

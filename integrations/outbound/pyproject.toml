@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "esm-outbound"
 version = "0.1.0"
-description = "Notifier, ticketing and threat-intel adapters for Elastic-SecOps-Mastery"
+description = "Notifier, ticketing and threat-intel adapters for Elastic GenAI SecOps"
 requires-python = ">=3.12"
 dependencies = [
     "esm-common",

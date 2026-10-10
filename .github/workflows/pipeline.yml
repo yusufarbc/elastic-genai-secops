@@ -45,7 +45,7 @@ env:
   PYTHON_VERSION: "3.12"
   LLM_PROVIDER: mock
   TRIVY_VERSION: v0.75.0
-  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/elastic-secops-mastery
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/elastic-genai-secops
 
 jobs:
   # ---------------------------------------------------------------------------------------------

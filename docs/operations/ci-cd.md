@@ -228,7 +228,7 @@ changes on `production` (or by hand), is not a required check, and deploys only 
 
 | Branch | Image | Tags |
 | --- | --- | --- |
-| `production` | `ghcr.io/<owner>/elastic-secops-mastery/<service>` | `latest`, `<first 12 chars of the commit SHA>` |
+| `production` | `ghcr.io/<owner>/elastic-genai-secops/<service>` | `latest`, `<first 12 chars of the commit SHA>` |
 | `staging` | same | `staging`, `<sha12>` |
 
 The image name matches the Kubernetes manifests in

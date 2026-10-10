@@ -1,7 +1,7 @@
 {
   "policy": {
     "_meta": {
-      "description": "Elastic-SecOps-Mastery default lifecycle for logs-* and metrics-* data streams",
+      "description": "Elastic GenAI SecOps default lifecycle for logs-* and metrics-* data streams",
       "managed_by": "content/bootstrap.sh"
     },
     "phases": {

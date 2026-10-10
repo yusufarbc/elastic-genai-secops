@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Elastic-SecOps-Mastery overrides for the built-in metrics index template",
+    "description": "Elastic GenAI SecOps overrides for the built-in metrics index template",
     "managed_by": "content/bootstrap.sh"
   },
   "template": {

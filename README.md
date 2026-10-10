@@ -1,4 +1,4 @@
-# Elastic-SecOps-Mastery
+# Elastic GenAI SecOps
 
 [![CI/CD](https://github.com/yusufarbc/elastic-genai-secops/actions/workflows/pipeline.yml/badge.svg?branch=production)](https://github.com/yusufarbc/elastic-genai-secops/actions/workflows/pipeline.yml)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Elastic-SecOps-Mastery: single-host Elastic Stack installer for Ubuntu 22.04 (profile "siem")
+# Elastic GenAI SecOps: single-host Elastic Stack installer for Ubuntu 22.04 (profile "siem")
 #
 #   sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 #
@@ -82,7 +82,7 @@ load_credentials() {
 save_credentials() {
   umask 077
   cat > "${CREDENTIALS_FILE}" <<EOF
-# Elastic-SecOps-Mastery credentials (created by elk_setup_ubuntu_jammy.sh)
+# Elastic GenAI SecOps credentials (created by elk_setup_ubuntu_jammy.sh)
 ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
 KIBANA_SYSTEM_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
 LOGSTASH_INGEST_PASSWORD=${LOGSTASH_INGEST_PASSWORD}
@@ -252,7 +252,7 @@ ES_URL="${ES_URL}" ES_PASSWORD="${ELASTIC_PASSWORD}" ES_CA_CERT="${ES_CA_CRT}" R
 
 cat <<EOF
 
-==================== Elastic-SecOps-Mastery ====================
+==================== Elastic GenAI SecOps ====================
 Kibana          http://$(hostname -I | awk '{print $1}'):5601   (user: elastic)
 Credentials     ${CREDENTIALS_FILE}   (root only)
 Elasticsearch   ${ES_URL}   (localhost only)
