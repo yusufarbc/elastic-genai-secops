@@ -36,7 +36,7 @@ func Handler(caseService *url.URL) http.Handler {
 }
 
 // securityHeaders sets response headers for a JSON API that browsers must not sniff, frame or
-// share cross-origin (found by the DAST scan in the pipeline).
+// share cross-origin (found by an OWASP ZAP API scan).
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()

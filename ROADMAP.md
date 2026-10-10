@@ -40,7 +40,7 @@ Every change keeps these rules; the [ADRs](docs/architecture/adr/README.md) expl
 | MCP server (read-only, masked) | Available | Official MCP client against the stack |
 | Notifications, ticketing, threat intel | Available | Local webhook catcher; not against real Slack/Teams/SMTP/TheHive/Jira/AbuseIPDB/MISP |
 | Windows endpoint rollout (GPO) | Available | Scripts and `prepare-share.ps1` reviewed; not run in a domain yet |
-| CI/CD + DevSecOps pipeline (SAST, SCA, IaC, secrets, SBOM, e2e, DAST, signed images) | Available | `staging` → `production`, docs/operations/ci-cd.md |
+| CI/CD + DevSecOps pipeline (lint, tests, SAST, SCA, IaC, secrets, e2e on promotion) | Available | `staging` → `production`, docs/operations/ci-cd.md, ADR-026 |
 
 ## Known limitations
 
