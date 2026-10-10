@@ -41,6 +41,16 @@ def test_delete_map_clears_reverse_map():
     assert m.unmask("inc-4", token) is None
 
 
+def test_purge_expired_deletes_only_old_maps():
+    m = Masker()
+    old = m.mask("inc-old", "user", "alice")
+    new = m.mask("inc-new", "user", "alice")
+    m._maps["inc-old"].created_at -= 7200
+    assert m.purge_expired(3600) == 1
+    assert m.unmask("inc-old", old) is None
+    assert m.unmask("inc-new", new) == "alice"
+
+
 def test_token_prefix_by_kind():
     m = Masker()
     assert m.mask("inc-5", "user", "alice").startswith("user_")
@@ -82,6 +92,13 @@ class _FakeES:
         if id not in self._docs:
             raise NotFoundError(404, {}, {})
         return {"_source": self._docs[id]}
+
+    async def delete_by_query(self, *, index: str, query: dict, conflicts: str) -> dict:
+        cutoff = query["range"]["created_at"]["lt"]
+        expired = [i for i, d in self._docs.items() if d["created_at"] < cutoff]
+        for doc_id in expired:
+            del self._docs[doc_id]
+        return {"deleted": len(expired)}
 
     async def delete(self, *, index: str, id: str) -> None:
         from elasticsearch import NotFoundError
@@ -143,6 +160,14 @@ async def test_es_delete_map_clears(es_masker):
 
 
 @pytest.mark.asyncio
+async def test_es_token_matches_mask_without_storing(es_masker):
+    token = es_masker.token("inc-6", "user", "alice")
+    assert es_masker._es._docs == {}
+    assert token == await es_masker.mask("inc-6", "user", "alice")
+    assert es_masker.token("inc-6", "user", "") == ""
+
+
+@pytest.mark.asyncio
 async def test_es_empty_plaintext_passthrough(es_masker):
     assert await es_masker.mask("inc-5", "user", "") == ""
 
@@ -151,3 +176,13 @@ async def test_es_empty_plaintext_passthrough(es_masker):
 async def test_es_ensure_index_idempotent(es_masker):
     await es_masker.ensure_index()
     await es_masker.ensure_index()  # second call must not raise
+
+
+@pytest.mark.asyncio
+async def test_es_purge_expired_deletes_only_old_maps(es_masker):
+    old = await es_masker.mask("inc-old", "host", "dc01.corp")
+    new = await es_masker.mask("inc-new", "host", "dc01.corp")
+    es_masker._es._docs["inc-old"]["created_at"] -= 7_200_000
+    assert await es_masker.purge_expired(3600) == 1
+    assert await es_masker.unmask("inc-old", old) is None
+    assert await es_masker.unmask("inc-new", new) == "dc01.corp"
