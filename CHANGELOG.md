@@ -12,6 +12,8 @@ SOC prototype and an AI-SOC platform).
 
 - Repository links, clone instructions and README badge point to the renamed repository
   (`elastic-genai-secops`), its `production` branch and the current pipeline workflow.
+- README architecture diagram redrawn top to bottom in four layers; it was one row of 15 boxes
+  and unreadable at GitHub's page width.
 
 ### Changed
 

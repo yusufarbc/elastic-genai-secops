@@ -18,26 +18,49 @@ analyst reviews. The LLM never acts on its own.
 
 ## Architecture
 
+Four layers, top to bottom. Each layer works without the one below it: the SIEM alone is a complete
+Elastic deployment, and the AI triage platform only adds suggestions on top of its alerts.
+
 ```mermaid
-flowchart LR
-    subgraph Sources
-        W[Windows<br/>Winlogbeat · WEF · Sysmon]
-        F[Firewalls<br/>FortiGate · Palo Alto]
-        O[Kaspersky<br/>Syslog]
+flowchart TB
+    subgraph SRC["1 · Log sources"]
+        W["Windows<br/>Winlogbeat · WEF · Sysmon"]
+        F["Firewalls<br/>FortiGate · Palo Alto"]
+        O["Kaspersky · Syslog"]
     end
-    Sources --> LS[Logstash]
-    LS --> ES[(Elasticsearch)]
-    ES --> KB[Kibana<br/>detection rules]
-    KB -->|alerts| DS[detection-service]
-    DS -->|esm.alerts| AG[alert-gateway<br/>correlation]
-    AG -->|esm.incidents| EN[enrichment-service]
-    EN --> MS[masking-service]
-    MS -->|esm.masked-incidents| LO[llm-orchestrator]
-    LO -->|esm.triage-decisions| CS[case-service]
-    CS --> BFF[bff / analyst]
-    CS -->|esm.case-events| OB[outbound-service<br/>notify · tickets]
-    MCP[mcp-server] -.->|read-only, masked| BFF
+
+    subgraph SIEM["2 · SIEM · Elastic Stack, Basic license"]
+        LS[Logstash] --> ES[(Elasticsearch)] --> KB["Kibana<br/>30 detection rules"]
+    end
+
+    subgraph AI["3 · AI triage platform · NATS JetStream"]
+        DS[detection-service] -->|esm.alerts| AG["alert-gateway<br/>correlation"]
+        AG -->|esm.incidents| EN[enrichment-service]
+        EN -->|esm.masked-incidents| LO["llm-orchestrator<br/>1 LLM call per incident"]
+        LO -->|esm.triage-decisions| CS[case-service]
+        EN <-.->|mask| MS["masking-service<br/>PII pseudonyms"]
+        CS -.->|unmask| MS
+    end
+
+    subgraph OUT["4 · Analyst and integrations"]
+        BFF["bff<br/>case API · analyst review"]
+        OB["outbound-service<br/>Slack · Teams · TheHive · Jira"]
+        MCP["mcp-server<br/>read-only, masked"]
+    end
+
+    W & F & O --> LS
+    KB -->|alerts| DS
+    CS --> BFF
+    CS -->|esm.case-events| OB
+    MCP -.-> BFF
 ```
+
+| Layer | What it does |
+| --- | --- |
+| Log sources | Beats, Windows Event Forwarding and syslog ship events to Logstash ([integrations/sources](integrations/sources/README.md)) |
+| SIEM | Logstash parses into ECS data streams; Kibana detection rules (MITRE-mapped) raise alerts |
+| AI triage platform | Alerts are correlated into incidents, identifiers are masked, and one LLM call per incident suggests a triage decision ([triage pipeline](docs/genai/triage-pipeline.md)) |
+| Analyst and integrations | An analyst approves or rejects every case; notifications and tickets follow; MCP clients get read-only, masked access ([MCP server](docs/genai/mcp-server.md)) |
 
 Design rules (see [ROADMAP.md](ROADMAP.md#design-rules) and the [ADRs](docs/architecture/adr/README.md)):
 one LLM call per incident, never per alert; only masked data reaches the LLM; LLM output is
