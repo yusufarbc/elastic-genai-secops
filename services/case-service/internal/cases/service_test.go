@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,6 +121,11 @@ func TestReviewFlowAndRedelivery(t *testing.T) {
 	}
 	if _, err := svc.Review(ctx, "inc-1", Review{Status: "maybe"}); err != ErrInvalidReview {
 		t.Fatalf("expected ErrInvalidReview, got %v", err)
+	}
+	for _, analyst := range []string{"bob\nINFO forged entry", strings.Repeat("a", 129)} {
+		if _, err := svc.Review(ctx, "inc-1", Review{Status: ReviewApproved, Analyst: analyst}); err != ErrInvalidAnalyst {
+			t.Fatalf("analyst %q: expected ErrInvalidAnalyst, got %v", analyst, err)
+		}
 	}
 	if _, err := svc.Review(ctx, "inc-1", Review{Status: ReviewApproved, Analyst: "bob"}); err != nil {
 		t.Fatal(err)

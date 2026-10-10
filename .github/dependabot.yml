@@ -5,23 +5,27 @@ updates:
     directory: /
     target-branch: staging
     schedule: { interval: weekly }
+    cooldown: { default-days: 3 }   # let a new release settle before it is proposed
     groups:
       go-minor-patch: { update-types: [minor, patch] }
   - package-ecosystem: pip
     directories: ["/libs/py-common", "/integrations/outbound", "/services/*"]
     target-branch: staging
     schedule: { interval: weekly }
+    cooldown: { default-days: 3 }   # let a new release settle before it is proposed
     groups:
       python-minor-patch: { update-types: [minor, patch] }
   - package-ecosystem: docker
     directories: ["/services/*"]
     target-branch: staging
     schedule: { interval: weekly }
+    cooldown: { default-days: 3 }   # let a new release settle before it is proposed
     groups:
       base-images: { patterns: ["*"] }
   - package-ecosystem: github-actions
     directory: /
     target-branch: staging
     schedule: { interval: weekly }
+    cooldown: { default-days: 3 }   # let a new release settle before it is proposed
     groups:
       actions: { patterns: ["*"] }

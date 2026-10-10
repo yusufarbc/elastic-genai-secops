@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // Handler exposes the case API:
@@ -52,7 +53,7 @@ func Handler(svc *Service, log *slog.Logger) http.Handler {
 		}
 		c, err := svc.Review(r.Context(), r.PathValue("id"), rv)
 		switch {
-		case errors.Is(err, ErrInvalidReview):
+		case errors.Is(err, ErrInvalidReview), errors.Is(err, ErrInvalidAnalyst):
 			writeError(w, http.StatusBadRequest, err.Error())
 		case errors.Is(err, ErrNotFound):
 			writeError(w, http.StatusNotFound, "case not found")
@@ -60,11 +61,18 @@ func Handler(svc *Service, log *slog.Logger) http.Handler {
 			log.Error("review case", "error", err)
 			writeError(w, http.StatusBadGateway, "could not update case")
 		default:
-			log.Info("case reviewed", "case_id", c.ID, "status", c.ReviewStatus, "analyst", c.ReviewedBy)
+			log.Info("case reviewed", "case_id", logSafe(c.ID), "status", c.ReviewStatus,
+				"analyst", logSafe(c.ReviewedBy))
 			writeJSON(w, http.StatusOK, c)
 		}
 	})
 	return mux
+}
+
+// logSafe drops line breaks from request-derived values before they are logged. The JSON log
+// handler escapes them anyway; this keeps the log safe with any handler.
+func logSafe(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", "")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
