@@ -31,7 +31,11 @@ class CaseAPI:
 
 
 class Masking:
-    """Gets the same tokens masking-service gave llm-orchestrator for an incident."""
+    """Gets the same tokens masking-service gave llm-orchestrator for an incident.
+
+    Uses /tokens, which stores nothing: viewing a case must not recreate a reverse map that was
+    deleted after the analyst review.
+    """
 
     def __init__(self, base_url: str, client: httpx.AsyncClient | None = None) -> None:
         self._client = client or httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=15)
@@ -41,7 +45,7 @@ class Masking:
         items = [(k, v) for k, v in dict.fromkeys(items) if v]
         if not items:
             return {}
-        resp = await self._client.post("/mask-batch", json={
+        resp = await self._client.post("/tokens", json={
             "incident_id": incident_id,
             "items": [{"kind": k, "plaintext": v} for k, v in items],
         })

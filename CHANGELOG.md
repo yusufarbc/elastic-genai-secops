@@ -42,6 +42,10 @@ SOC prototype and an AI-SOC platform).
 - **CI**: Go and Python lint/tests, rule and manifest validation (kubeconform with ECK schemas),
   shellcheck, image builds with Trivy, GHCR publishing from `production`.
 - End-to-end tests for the pipeline and the MCP server; architecture decision records ADR-001 to ADR-023.
+- **Reverse-map lifecycle** (ADR-025): case-service deletes an incident's masking map after the
+  analyst review; masking-service purges maps older than `MASKING_MAP_TTL_HOURS` (default 14 days).
+  mcp-server reads display tokens from the new, stateless `POST /tokens` endpoint, so viewing a case
+  no longer writes plaintext back into a map.
 
 ### Security
 

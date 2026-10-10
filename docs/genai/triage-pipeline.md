@@ -22,9 +22,9 @@ flowchart LR
 | detection-service | Go | Polls open alerts, normalizes them, extracts MITRE techniques | checkpoint in `esm-state` |
 | alert-gateway | Go | Groups alerts by host + user + first technique within `CORRELATION_WINDOW`; emits early at `CORRELATION_THRESHOLD` alerts; risk score | in memory |
 | enrichment-service | Python | Builds the curated incident: masked identifiers, timeline (max 50), deterministic summary. Free-text fields such as command lines are never forwarded | – |
-| masking-service | Python | Deterministic pseudonyms (`host_1a2b3c`) and the only reverse map | `esm-masking-maps` |
+| masking-service | Python | Deterministic pseudonyms (`host_1a2b3c`) and the only reverse map; maps expire after `MASKING_MAP_TTL_HOURS` (default 14 days, ADR-025) | `esm-masking-maps` |
 | llm-orchestrator | Python | The only LLM caller: one call per incident, JSON schema validation, retries, token budget per window, audit log | `esm-llm-audit` |
-| case-service | Go | Un-masks the decision, creates the case, records analyst reviews | `esm-cases` |
+| case-service | Go | Un-masks the decision, creates the case, records analyst reviews and then deletes the incident's reverse map | `esm-cases` |
 | bff | Go | Thin analyst API in front of case-service | – |
 
 Messages travel over NATS JetStream (stream `ESM`, subjects `esm.*`, ADR-017). A message that fails
@@ -75,5 +75,4 @@ response, model, token counts, latency and outcome.
 
 - alert-gateway keeps open correlation windows in memory; alerts of an unfinished window are lost on restart.
 - The GCP Pub/Sub bus adapter is not implemented yet (`BUS_BACKEND=nats` only).
-- No asset-criticality, GeoIP or threat-intel enrichers yet.
-- Masking reverse maps have no TTL yet.
+- No asset-criticality or GeoIP enrichers yet.
