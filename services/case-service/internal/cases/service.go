@@ -6,12 +6,18 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+	"unicode"
 
 	"esm/libs/go-common/contracts"
 )
 
 // ErrInvalidReview is returned for an unknown review status.
 var ErrInvalidReview = errors.New("status must be approved or rejected")
+
+// ErrInvalidAnalyst is returned for an analyst name that is too long or has control characters.
+var ErrInvalidAnalyst = errors.New("analyst must be at most 128 printable characters")
+
+const maxAnalystLen = 128
 
 // Publisher sends case events to outbound integrations (esm.case-events).
 type Publisher interface {
@@ -108,6 +114,9 @@ func (s *Service) Review(ctx context.Context, id string, rv Review) (*Case, erro
 	if rv.Status != ReviewApproved && rv.Status != ReviewRejected {
 		return nil, ErrInvalidReview
 	}
+	if !validAnalyst(rv.Analyst) {
+		return nil, ErrInvalidAnalyst
+	}
 	c, err := s.Store.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -133,6 +142,18 @@ func (s *Service) Review(ctx context.Context, id string, rv Review) (*Case, erro
 		s.Log.Warn("reverse map delete failed", "incident_id", c.IncidentID, "error", err)
 	}
 	return c, nil
+}
+
+func validAnalyst(s string) bool {
+	if len([]rune(s)) > maxAnalystLen {
+		return false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func severityFromRisk(risk int) string {
