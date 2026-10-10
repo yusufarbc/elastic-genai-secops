@@ -10,9 +10,10 @@ SOC prototype and an AI-SOC platform).
 
 ### Changed
 
-- **CI/CD**: one DevSecOps pipeline for the `staging` → `production` flow (ADR-024): golangci-lint
-  with gosec, Semgrep, CodeQL, govulncheck, pip-audit, Trivy IaC and image scans, Syft SBOMs, e2e on
-  the compose stack, OWASP ZAP API scan, cosign-signed images with provenance and SBOM attestations.
+- **CI/CD**: one DevSecOps pipeline for the `staging` → `production` flow (ADR-024), sized for the
+  project (ADR-026): golangci-lint with gosec, gitleaks, CodeQL, govulncheck, pip-audit, dependency
+  review and Trivy IaC on every change; Trivy image scans weekly; the e2e test on promotion PRs.
+  Semgrep, the OWASP ZAP scan, SBOMs, image signing and the Scorecard workflow were removed.
 
 ### Added
 

@@ -31,6 +31,7 @@ Format per entry: **Decision · Status · Date · Context · Alternatives · Rat
 | [ADR-023](023-outbound-integrations.md) | Outbound integrations inform and record, they never act |
 | [ADR-024](024-staging-production-pipeline.md) | `staging` → `production` branch flow and a single DevSecOps pipeline |
 | [ADR-025](025-masking-reverse-map-lifecycle.md) | Reverse-map lifecycle: delete after review, TTL as a backstop |
+| [ADR-026](026-right-sized-pipeline.md) | A pipeline sized for a small open-source project |
 
 ## Open items to resolve (carry forward)
 
