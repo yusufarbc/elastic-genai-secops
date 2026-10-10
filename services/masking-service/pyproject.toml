@@ -9,7 +9,7 @@ requires-python = ">=3.12"
 dependencies = [
     "esm-common",
     "fastapi>=0.111",
-    "uvicorn>=0.30",
+    "uvicorn>=0.54.0",
     "pydantic>=2.7",
     "structlog>=24.2",
     "elasticsearch[async]>=8.13,<9",
