@@ -10,7 +10,7 @@ SOC prototype and an AI-SOC platform).
 
 ### Fixed
 
-- Repository links, clone instructions and README badges point to the renamed repository
+- Repository links, clone instructions and README badge point to the renamed repository
   (`elastic-genai-secops`), its `production` branch and the current pipeline workflow.
 
 ### Changed

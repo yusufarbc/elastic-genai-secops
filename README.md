@@ -1,7 +1,6 @@
 # Elastic-SecOps-Mastery
 
 [![CI/CD](https://github.com/yusufarbc/elastic-genai-secops/actions/workflows/pipeline.yml/badge.svg?branch=production)](https://github.com/yusufarbc/elastic-genai-secops/actions/workflows/pipeline.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yusufarbc/elastic-genai-secops/badge)](https://scorecard.dev/viewer/?uri=github.com/yusufarbc/elastic-genai-secops)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Elastic Stack](https://img.shields.io/badge/Elastic%20Stack-8.13-005571?logo=elasticsearch)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)
