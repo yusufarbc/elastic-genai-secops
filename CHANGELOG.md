@@ -18,6 +18,7 @@ SOC prototype and an AI-SOC platform).
 - **CI/CD**: one DevSecOps pipeline for the `staging` → `production` flow (ADR-024): golangci-lint
   with gosec, Semgrep, CodeQL, govulncheck, pip-audit, Trivy IaC and image scans, Syft SBOMs, e2e on
   the compose stack, OWASP ZAP API scan, cosign-signed images with provenance and SBOM attestations.
+- Relicensed under Apache-2.0 (ADR-020); identifiers renamed to the `esm` prefix (ADR-021).
 
 ### Added
 
@@ -38,10 +39,6 @@ SOC prototype and an AI-SOC platform).
 - **CI**: Go and Python lint/tests, rule and manifest validation (kubeconform with ECK schemas),
   shellcheck, image builds with Trivy, GHCR publishing from `production`.
 - End-to-end tests for the pipeline and the MCP server; architecture decision records ADR-001 to ADR-023.
-
-### Changed
-
-- Relicensed under Apache-2.0 (ADR-020); identifiers renamed to the `esm` prefix (ADR-021).
 
 ### Security
 
