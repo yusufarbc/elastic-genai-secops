@@ -30,6 +30,7 @@ Format per entry: **Decision · Status · Date · Context · Alternatives · Rat
 | [ADR-022](022-mcp-server-read-only-masked.md) | MCP server is read-only and returns masked data |
 | [ADR-023](023-outbound-integrations.md) | Outbound integrations inform and record, they never act |
 | [ADR-024](024-staging-production-pipeline.md) | `staging` → `production` branch flow and a single DevSecOps pipeline |
+| [ADR-026](026-right-sized-pipeline.md) | A pipeline sized for a small open-source project |
 
 ## Open items to resolve (carry forward)
 

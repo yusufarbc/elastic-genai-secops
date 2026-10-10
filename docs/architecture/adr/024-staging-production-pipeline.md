@@ -1,6 +1,6 @@
 # ADR-024: `staging` → `production` branch flow and a single DevSecOps pipeline
 
-**Status:** Accepted · **Date:** 2026-10-08 · Supersedes the branch names in ADR-011
+**Status:** Accepted · **Date:** 2026-10-08 · Supersedes the branch names in ADR-011 · The stage list and when each stage runs are amended by ADR-026
 
 **Context:** ADR-011 named the branches `test` and `main` and split CI and security scanning across
 two workflows. The repository now uses `staging` (integration) and `production` (default, release),
