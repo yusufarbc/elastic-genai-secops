@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 First consolidated version of three earlier projects (an Ubuntu ELK installer, an MCP-based GenAI
 SOC prototype and an AI-SOC platform).
 
+### Fixed
+
+- Repository links, clone instructions and README badges point to the renamed repository
+  (`elastic-genai-secops`), its `production` branch and the current pipeline workflow.
+
 ### Changed
 
 - **CI/CD**: one DevSecOps pipeline for the `staging` → `production` flow (ADR-024): golangci-lint

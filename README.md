@@ -1,7 +1,7 @@
 # Elastic-SecOps-Mastery
 
-[![CI](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/ci.yml/badge.svg)](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/ci.yml)
-[![Security](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/security.yml/badge.svg)](https://github.com/yusufarbc/Elastic-SecOps-Mastery/actions/workflows/security.yml)
+[![CI/CD](https://github.com/yusufarbc/elastic-genai-secops/actions/workflows/pipeline.yml/badge.svg?branch=production)](https://github.com/yusufarbc/elastic-genai-secops/actions/workflows/pipeline.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yusufarbc/elastic-genai-secops/badge)](https://scorecard.dev/viewer/?uri=github.com/yusufarbc/elastic-genai-secops)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Elastic Stack](https://img.shields.io/badge/Elastic%20Stack-8.13-005571?logo=elasticsearch)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go)
@@ -80,8 +80,8 @@ Choose **what** to install (profile) independently of **where** it runs (target)
 **SIEM with Docker Compose** (Elasticsearch, Kibana, Logstash, detection rules; needs ~4 GB RAM for Docker):
 
 ```bash
-git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
-cd Elastic-SecOps-Mastery/deploy/compose
+git clone https://github.com/yusufarbc/elastic-genai-secops.git
+cd elastic-genai-secops/deploy/compose
 ./init-env.sh                      # Windows: .\init-env.ps1  (creates .env with random passwords)
 docker compose -f siem.yml up -d
 ```

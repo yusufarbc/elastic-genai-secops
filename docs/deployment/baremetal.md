@@ -20,8 +20,8 @@ pipeline, the ILM policy, templates, roles and detection rules.
 ## Install
 
 ```bash
-git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
-cd Elastic-SecOps-Mastery
+git clone https://github.com/yusufarbc/elastic-genai-secops.git
+cd elastic-genai-secops
 sudo ./deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
 ```
 
