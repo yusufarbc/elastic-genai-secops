@@ -216,6 +216,11 @@ A newer commit on the same pull request cancels the run still in progress.
 (weekly, on pushes to `production` and on ruleset changes). It rates the repository's
 supply-chain practices: branch protection, token permissions, pinned dependencies, signed releases.
 
+[`pages.yml`](../../.github/workflows/pages.yml) publishes the landing page in `website/` to
+GitHub Pages. It is independent of the pipeline: it runs only when `website/` or the workflow file
+changes on `production` (or by hand), is not a required check, and deploys only through the
+`github-pages` environment, which accepts the `production` branch.
+
 ## Results: where to look
 
 | What | Where |
