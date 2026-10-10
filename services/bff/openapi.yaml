@@ -1,5 +1,5 @@
-# Analyst-facing bff API. Used as documentation and as the target definition for the DAST scan
-# (OWASP ZAP API scan in .github/workflows/pipeline.yml). Keep in sync with internal/api/handler.go.
+# Analyst-facing bff API. Used as documentation and as the target definition for an OWASP ZAP
+# API scan (see ADR-026). Keep in sync with internal/api/handler.go.
 openapi: 3.0.3
 info:
   title: esm bff

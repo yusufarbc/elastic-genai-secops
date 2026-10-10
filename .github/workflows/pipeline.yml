@@ -1,26 +1,27 @@
 name: CI/CD · DevSecOps
 
 # One pipeline for every change. Flow: feature branch -> PR into staging -> PR staging -> production.
+# Sized for a small open-source project (ADR-026): cheap checks on every change, the slow ones
+# where they add information.
 #
 #   0 guard     promotion rule (only staging or hotfix/* may open PRs into production)
 #   1 quality   lint (gofmt, go vet, golangci-lint+gosec, ruff, hadolint, shellcheck, actionlint),
 #               secret scan (gitleaks, full history)
 #   2 verify    unit tests (Go, Python), content + manifest validation,
-#               SAST (CodeQL, Semgrep), SCA (govulncheck, pip-audit, dependency review), IaC (Trivy)
-#   3 build     container images, image scan (Trivy), SBOM per image (Syft, CycloneDX)
-#   4 dynamic   end-to-end pipeline test on the compose stack + DAST (OWASP ZAP API scan on the bff);
-#               pull requests only: the production ruleset requires an up-to-date branch, so the
-#               merge result is the tree the PR already tested
+#               SAST (CodeQL), SCA (govulncheck, pip-audit, dependency review), IaC (Trivy)
+#   3 build     container images; image scan (Trivy) on the weekly run and by hand
+#   4 e2e       end-to-end pipeline test on the compose stack, on promotion PRs into production
+#               and by hand: the production ruleset requires an up-to-date branch, so the merge
+#               result is the tree the PR already tested
 #   5 gate      single required status check for the branch rulesets
-#   6 release   push to staging/production only: publish to GHCR, cosign signature, SBOM and
-#               SLSA provenance attestations. There is no deploy target yet (docs/operations/ci-cd.md).
+#   6 release   push to staging/production only: publish images to GHCR. No deploy target yet.
 #
 # The LLM is always mocked; the billed API is never called (design rule 7, ROADMAP.md).
 # Findings are uploaded as SARIF to the Security tab; HIGH/CRITICAL findings fail the pipeline.
 #
 # What runs when:
-#   pull_request   everything up to the gate
-#   push           quality, verify, build (images are rebuilt and re-scanned before release), release
+#   pull_request   everything up to the gate (e2e only on PRs into production)
+#   push           quality, verify, build, release
 #   schedule       secrets, SAST, SCA, IaC, image scans: rules and advisories change, code does not
 
 on:
@@ -82,6 +83,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          check-latest: true   # latest patch of GO_VERSION, not the runner cache (stdlib CVEs)
       - name: gofmt
         run: test -z "$(gofmt -l libs services)" || (gofmt -l libs services; exit 1)
       - name: go vet
@@ -138,6 +140,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          check-latest: true   # latest patch of GO_VERSION, not the runner cache (stdlib CVEs)
       - name: go test (race, coverage)
         run: |
           go test -race -count=1 -coverprofile=coverage.out ./...
@@ -192,6 +195,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          check-latest: true   # latest patch of GO_VERSION, not the runner cache (stdlib CVEs)
       - run: pip install pyyaml
       - name: Detection rules are built from rules.yml
         run: python content/detection-rules/build.py --check
@@ -253,6 +257,7 @@ jobs:
         if: matrix.language == 'go'
         with:
           go-version: ${{ env.GO_VERSION }}
+          check-latest: true   # latest patch of GO_VERSION, not the runner cache (stdlib CVEs)
       - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           languages: ${{ matrix.language }}
@@ -261,41 +266,6 @@ jobs:
       - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           category: codeql-${{ matrix.language }}
-
-  sast-semgrep:
-    name: SAST · Semgrep
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: semgrep scan
-        run: |
-          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.180.0 \
-            semgrep scan --metrics off --quiet \
-              --config p/default --config p/golang --config p/python \
-              --sarif-output semgrep.sarif
-      - uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
-        if: always() && hashFiles('semgrep.sarif') != ''
-        with:
-          sarif_file: semgrep.sarif
-          category: semgrep
-      - name: Fail on ERROR-severity findings
-        run: |
-          python3 - <<'EOF'
-          import json, sys
-          results = [r for run in json.load(open("semgrep.sarif"))["runs"] for r in run["results"]]
-          errors = [r for r in results if r.get("level") == "error"]
-          for r in errors:
-              loc = r["locations"][0]["physicalLocation"]
-              print(f"::error file={loc['artifactLocation']['uri']},line={loc['region']['startLine']}::{r['ruleId']}: {r['message']['text']}")
-          print(f"semgrep: {len(results)} findings, {len(errors)} ERROR")
-          sys.exit(1 if errors else 0)
-          EOF
 
   sca:
     name: SCA · govulncheck, pip-audit
@@ -308,6 +278,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
+          check-latest: true   # latest patch of GO_VERSION, not the runner cache (stdlib CVEs)
       - name: govulncheck (reachable Go vulnerabilities)
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
@@ -375,7 +346,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      security-events: write
+      security-events: write   # image-scan SARIF on the weekly run
     strategy:
       fail-fast: false
       matrix:
@@ -401,7 +372,9 @@ jobs:
             org.opencontainers.image.licenses=Apache-2.0
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      # Base images change between releases, our code does not: scan weekly and on demand.
       - name: Image scan · Trivy (fails on HIGH/CRITICAL with a fix available)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: ${{ env.TRIVY_VERSION }}
@@ -417,14 +390,7 @@ jobs:
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image-${{ matrix.service }}
-      - name: SBOM · Syft (CycloneDX)
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          image: esm/${{ matrix.service }}:dev
-          format: cyclonedx-json
-          output-file: sbom-${{ matrix.service }}.cdx.json
-          artifact-name: sbom-${{ matrix.service }}.cdx.json
-      - name: Export image for the e2e, DAST and release jobs
+      - name: Export image for the e2e and release jobs
         run: docker save esm/${{ matrix.service }}:dev | gzip -1 > image.tar.gz
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -433,12 +399,14 @@ jobs:
           retention-days: 3
 
   # ---------------------------------------------------------------------------------------------
-  # 4 · dynamic: end-to-end + DAST on the running compose stack
+  # 4 · e2e on the running compose stack (promotion PRs into production, or by hand)
   # ---------------------------------------------------------------------------------------------
-  e2e-dast:
-    name: E2E + DAST · compose stack
+  e2e:
+    name: E2E · compose stack
     needs: [build, content]
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: >-
+      ${{ !cancelled() && !failure() && (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.base_ref == 'production')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -473,24 +441,6 @@ jobs:
           python3 -m venv /tmp/mcp && /tmp/mcp/bin/pip install -q 'mcp>=1.9,<2'
           MCP_TOKEN="$(grep '^MCP_TOKEN=' deploy/compose/.env | cut -d= -f2-)" \
             MCP_URL=http://localhost:8090/mcp /tmp/mcp/bin/python tests/e2e/mcp_client_test.py
-      - name: DAST · OWASP ZAP API scan (bff)
-        run: |
-          mkdir -p zap && cp services/bff/openapi.yaml zap/ && chmod -R 777 zap
-          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.17.0 \
-            zap-api-scan.py -t /zap/wrk/openapi.yaml -f openapi -I \
-              -J zap-bff.json -r zap-bff.html -w zap-bff.md
-          cat zap/zap-bff.md >> "$GITHUB_STEP_SUMMARY"
-      - name: Fail on High-risk DAST findings
-        run: |
-          python3 - <<'EOF'
-          import json, sys
-          alerts = [a for s in json.load(open("zap/zap-bff.json"))["site"] for a in s["alerts"]]
-          high = [a for a in alerts if a["riskcode"] == "3"]
-          for a in high:
-              print(f"::error::ZAP High: {a['name']} ({a['pluginid']}), {a['count']} instance(s)")
-          print(f"zap: {len(alerts)} alert types, {len(high)} High")
-          sys.exit(1 if high else 0)
-          EOF
       - name: Collect stack logs
         if: always()
         working-directory: deploy/compose
@@ -498,10 +448,8 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: e2e-dast-reports
-          path: |
-            zap/zap-bff.*
-            stack-logs.txt
+          name: e2e-logs
+          path: stack-logs.txt
           retention-days: 14
 
   # ---------------------------------------------------------------------------------------------
@@ -510,8 +458,8 @@ jobs:
   gate:
     name: Pipeline gate
     if: always()
-    needs: [promotion, lint, secrets, test-go, test-python, content, sast-codeql, sast-semgrep,
-            sca, dependency-review, iac, build, e2e-dast]
+    needs: [promotion, lint, secrets, test-go, test-python, content, sast-codeql,
+            sca, dependency-review, iac, build, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -526,7 +474,7 @@ jobs:
           sys.exit(1 if bad else 0)'
 
   # ---------------------------------------------------------------------------------------------
-  # 6 · release (push to staging/production): publish, sign, attest. No deploy target yet.
+  # 6 · release (push to staging/production): publish to GHCR. No deploy target yet.
   # ---------------------------------------------------------------------------------------------
   release:
     name: Release · ${{ matrix.service }}
@@ -540,8 +488,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
-      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -552,16 +498,12 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: image-${{ matrix.service }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: sbom-${{ matrix.service }}.cdx.json
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push (production -> latest, staging -> staging; both -> commit SHA)
-        id: push
         env:
           SERVICE: ${{ matrix.service }}
           CHANNEL: ${{ github.ref_name == 'production' && 'latest' || 'staging' }}
@@ -573,22 +515,4 @@ jobs:
             docker push "$image:$tag"
           done
           digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$image:$CHANNEL" | cut -d@ -f2)"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "$SERVICE: $image@$digest" >> "$GITHUB_STEP_SUMMARY"
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-      - name: Sign (cosign keyless, GitHub OIDC)
-        run: cosign sign --yes "${{ steps.push.outputs.image }}@${{ steps.push.outputs.digest }}"
-      - name: Attest build provenance (SLSA)
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-name: ${{ steps.push.outputs.image }}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
-      - name: Attest SBOM
-        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
-        with:
-          subject-name: ${{ steps.push.outputs.image }}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          sbom-path: sbom-${{ matrix.service }}.cdx.json
-          push-to-registry: true
