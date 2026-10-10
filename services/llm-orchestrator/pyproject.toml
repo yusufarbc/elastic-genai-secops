@@ -10,7 +10,7 @@ dependencies = [
     "esm-common",
     "httpx>=0.28.1",
     "pydantic>=2.7",
-    "structlog>=24.2",
+    "structlog>=26.1.0",
 ]
 
 [project.optional-dependencies]
