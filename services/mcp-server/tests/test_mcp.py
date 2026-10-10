@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 
+from app.clients import Masking
 from app.hunts import Hunt, build_query, load_hunts
 from app.server import build_server
 from app.views import mask_case
@@ -122,3 +124,19 @@ def test_http_requires_token(monkeypatch: pytest.MonkeyPatch) -> None:
                              "protocolVersion": "2025-03-26", "capabilities": {},
                              "clientInfo": {"name": "test", "version": "1"}}})
         assert ok.status_code == 200, ok.text
+
+
+async def test_masking_client_uses_stateless_tokens_endpoint():
+    seen: list[tuple[str, dict]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append((request.url.path, body))
+        return httpx.Response(200, json={"tokens": [f"t{i}" for i in range(len(body["items"]))]})
+
+    client = httpx.AsyncClient(base_url="http://masking", transport=httpx.MockTransport(handler))
+    got = await Masking("http://masking", client).tokens(
+        "inc-1", [("user", "alice"), ("host", "PC-1"), ("user", "alice"), ("ip", "")])
+    assert got == {"alice": "t0", "PC-1": "t1"}
+    assert seen == [("/tokens", {"incident_id": "inc-1", "items": [
+        {"kind": "user", "plaintext": "alice"}, {"kind": "host", "plaintext": "PC-1"}]})]

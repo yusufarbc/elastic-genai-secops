@@ -78,7 +78,7 @@ for img in esm/bff:dev docker.elastic.co/elasticsearch/elasticsearch:8.13.4; do 
 done
 ```
 
-**onprem** pulls `ghcr.io/yusufarbc/elastic-secops-mastery/<service>:latest` (published by CI from
+**onprem** pulls `ghcr.io/yusufarbc/elastic-genai-secops/<service>:latest` (published by CI from
 `production`). Set your StorageClass with the commented patch in `overlays/onprem/kustomization.yaml`.
 
 **gke** before applying:

@@ -1,5 +1,5 @@
 <!--
-  Elastic-SecOps-Mastery Sysmon configuration (Sysmon 15, schema 4.90)
+  Elastic GenAI SecOps Sysmon configuration (Sysmon 15, schema 4.90)
 
   Built to feed the detection rules in content/detection-rules:
   - Process creation is logged for every process. Built-in Windows binaries are what attackers

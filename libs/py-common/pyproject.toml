@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "esm-common"
 version = "0.1.0"
-description = "Shared contracts, message bus and logging for Elastic-SecOps-Mastery Python services"
+description = "Shared contracts, message bus and logging for Elastic GenAI SecOps Python services"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.7",

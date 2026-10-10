@@ -2,7 +2,7 @@
 
 # Architecture overview
 
-Elastic-SecOps-Mastery has three layers. Each works without the one above it.
+Elastic GenAI SecOps has three layers. Each works without the one above it.
 
 | Layer | Components | Profile |
 | --- | --- | --- |

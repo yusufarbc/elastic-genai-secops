@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Elastic-SecOps-Mastery</title>
+  <title>Elastic GenAI SecOps</title>
   <meta name="description" content="Open, AI-assisted security operations on the Basic-licensed Elastic Stack: log collection, detection, incident correlation, masked LLM triage and analyst cases.">
   <style>
     :root { --bg: #0b1220; --panel: #121a2b; --text: #e6ebf5; --muted: #9aa7bd; --accent: #36c2b4; --border: #24304a; }
@@ -35,14 +35,14 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>Elastic-SecOps-Mastery</h1>
+      <h1>Elastic GenAI SecOps</h1>
       <p class="lead">Open, AI-assisted security operations on the Basic-licensed Elastic Stack. Collect logs,
         detect threats with MITRE-mapped rules, correlate alerts into incidents and let an LLM suggest a
         triage decision &mdash; on masked data, with every case reviewed by an analyst.</p>
       <div class="buttons">
-        <a class="btn primary" href="https://github.com/yusufarbc/Elastic-SecOps-Mastery#quick-start">Quick start</a>
-        <a class="btn" href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/docs/architecture/overview.md">Architecture</a>
-        <a class="btn" href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/blob/main/ROADMAP.md">Roadmap</a>
+        <a class="btn primary" href="https://github.com/yusufarbc/elastic-genai-secops#quick-start">Quick start</a>
+        <a class="btn" href="https://github.com/yusufarbc/elastic-genai-secops/blob/production/docs/architecture/overview.md">Architecture</a>
+        <a class="btn" href="https://github.com/yusufarbc/elastic-genai-secops/blob/production/ROADMAP.md">Roadmap</a>
       </div>
     </header>
 
@@ -79,15 +79,15 @@ detection-service ─► alert-gateway (correlation) ─► enrichment + masking
         <div class="card"><h3>Bare metal</h3><p>One-command installer for Ubuntu 22.04.</p></div>
         <div class="card"><h3>Windows endpoints</h3><p>Winlogbeat, Sysmon, Metricbeat and Heartbeat via Group Policy.</p></div>
       </div>
-      <pre><code>git clone https://github.com/yusufarbc/Elastic-SecOps-Mastery.git
-cd Elastic-SecOps-Mastery/deploy/compose
+      <pre><code>git clone https://github.com/yusufarbc/elastic-genai-secops.git
+cd elastic-genai-secops/deploy/compose
 ./init-env.sh
 docker compose -f siem.yml -f platform.yml up -d --build</code></pre>
     </section>
 
     <footer>
-      Apache License 2.0 · <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery">GitHub</a> ·
-      <a href="https://github.com/yusufarbc/Elastic-SecOps-Mastery/tree/main/docs">Documentation</a> ·
+      Apache License 2.0 · <a href="https://github.com/yusufarbc/elastic-genai-secops">GitHub</a> ·
+      <a href="https://github.com/yusufarbc/elastic-genai-secops/tree/production/docs">Documentation</a> ·
       Elastic, Elasticsearch and Kibana are trademarks of Elasticsearch B.V.; this project is not affiliated with Elastic.
     </footer>
   </div>

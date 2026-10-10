@@ -1,5 +1,5 @@
 """
-PII pseudonymizer for Elastic-SecOps-Mastery.
+PII pseudonymizer for Elastic GenAI SecOps.
 
 Converts plaintext identifiers to stable tokens before any data leaves
 toward llm-orchestrator. Only this service holds the reverse-map.
@@ -11,6 +11,9 @@ Two implementations:
 Guarantee: for the same incident_id, the same plaintext always maps to the same token
 because tokens are derived via sha256(incident_id:kind:plaintext) — deterministic
 across replicas, so concurrent upserts converge to the same value.
+
+Retention: maps are deleted when the analyst reviews the case (case-service calls
+DELETE /map) and, as a backstop, by purge_expired() once they are older than the TTL.
 """
 
 from __future__ import annotations
@@ -27,9 +30,10 @@ if TYPE_CHECKING:
 
 @dataclass
 class ReverseMap:
-    """Per-incident mapping from token → plaintext. TTL is managed by the caller."""
+    """Per-incident mapping from token → plaintext. TTL is enforced by purge_expired()."""
 
     incident_id: str
+    created_at: float = field(default_factory=time.time)
     token_to_plain: dict[str, str] = field(default_factory=dict)
     plain_to_token: dict[str, str] = field(default_factory=dict)
 
@@ -94,6 +98,15 @@ class Masker:
         """Delete the reverse-map for an incident (called after case-service un-masks)."""
         with self._lock:
             self._maps.pop(incident_id, None)
+
+    def purge_expired(self, max_age_seconds: float) -> int:
+        """Delete maps created more than max_age_seconds ago; return how many were deleted."""
+        cutoff = time.time() - max_age_seconds
+        with self._lock:
+            expired = [i for i, m in self._maps.items() if m.created_at < cutoff]
+            for incident_id in expired:
+                del self._maps[incident_id]
+        return len(expired)
 
     # ------------------------------------------------------------------
     # Internal
@@ -164,6 +177,10 @@ class ElasticsearchMasker:
         prefix = cls._PREFIX.get(kind, "tok_")
         return f"{prefix}{digest[:6]}"
 
+    def token(self, incident_id: str, kind: str, plaintext: str) -> str:
+        """Return the token mask() gives plaintext, without storing a reverse mapping."""
+        return self._make_token(kind, incident_id, plaintext) if plaintext else plaintext
+
     async def mask(self, incident_id: str, kind: str, plaintext: str) -> str:
         if not plaintext:
             return plaintext
@@ -214,3 +231,17 @@ class ElasticsearchMasker:
             await self._es.delete(index=_INDEX, id=incident_id)
         except NotFoundError:
             pass
+
+    async def purge_expired(self, max_age_seconds: float) -> int:
+        """Delete maps created more than max_age_seconds ago; return how many were deleted.
+
+        Safe to run on every replica at once: delete_by_query skips documents another
+        replica already removed (conflicts=proceed).
+        """
+        cutoff = int((time.time() - max_age_seconds) * 1000)
+        resp = await self._es.delete_by_query(
+            index=_INDEX,
+            query={"range": {"created_at": {"lt": cutoff}}},
+            conflicts="proceed",
+        )
+        return int(resp.get("deleted", 0))

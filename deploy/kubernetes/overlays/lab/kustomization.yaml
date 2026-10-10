@@ -23,15 +23,15 @@ generatorOptions:
 
 # Use images built by `docker compose -f siem.yml -f platform.yml build` and loaded into the cluster
 images:
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/detection-service, newName: esm/detection-service, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/alert-gateway, newName: esm/alert-gateway, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/enrichment-service, newName: esm/enrichment-service, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/masking-service, newName: esm/masking-service, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/llm-orchestrator, newName: esm/llm-orchestrator, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/case-service, newName: esm/case-service, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/bff, newName: esm/bff, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/mcp-server, newName: esm/mcp-server, newTag: dev }
-  - { name: ghcr.io/yusufarbc/elastic-secops-mastery/outbound-service, newName: esm/outbound-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/detection-service, newName: esm/detection-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/alert-gateway, newName: esm/alert-gateway, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/enrichment-service, newName: esm/enrichment-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/masking-service, newName: esm/masking-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/llm-orchestrator, newName: esm/llm-orchestrator, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/case-service, newName: esm/case-service, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/bff, newName: esm/bff, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/mcp-server, newName: esm/mcp-server, newTag: dev }
+  - { name: ghcr.io/yusufarbc/elastic-genai-secops/outbound-service, newName: esm/outbound-service, newTag: dev }
 
 patches:
   # No load balancer in a lab cluster: reach Logstash with kubectl port-forward

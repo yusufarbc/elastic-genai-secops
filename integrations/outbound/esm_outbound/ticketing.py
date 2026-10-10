@@ -31,7 +31,7 @@ class TheHiveSink:
         c = event.case
         resp = await self._client.post(f"{self._url}/api/v1/alert", headers=self._headers, json={
             "type": "esm-case",
-            "source": "Elastic-SecOps-Mastery",
+            "source": "Elastic GenAI SecOps",
             "sourceRef": c.id,
             "title": message.title,
             "description": message.markdown(),

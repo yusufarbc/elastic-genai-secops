@@ -113,7 +113,7 @@ def build_note(rule: dict) -> str:
 
 def build_rule(rule: dict) -> dict:
     severity = rule["severity"]
-    tags = ["Elastic-SecOps-Mastery", f"Rule ID: {rule['id']}"]
+    tags = ["Elastic GenAI SecOps", f"Rule ID: {rule['id']}"]
     tags += sorted({f"MITRE: {m['technique']}" for m in rule.get("mitre", [])})
     out = {
         "rule_id": "esm-" + rule["id"].lower(),
@@ -133,7 +133,7 @@ def build_rule(rule: dict) -> dict:
         "false_positives": rule.get("false_positives", []),
         "references": rule.get("references", []),
         "note": build_note(rule),
-        "author": ["Elastic-SecOps-Mastery"],
+        "author": ["Elastic GenAI SecOps"],
         "license": "Apache-2.0",
         "version": rule.get("version", 1),
         "type": "query",

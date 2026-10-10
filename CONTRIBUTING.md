@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in Elastic-SecOps-Mastery. Issues and pull requests are welcome.
+Thanks for your interest in Elastic GenAI SecOps. Issues and pull requests are welcome.
 
 ## Before you start
 
@@ -47,8 +47,8 @@ python ../../tests/e2e/pipeline_test.py
 - Branch from `staging` and open the pull request against `staging`; `production` only takes
   promotion PRs from `staging` (see [docs/operations/ci-cd.md](docs/operations/ci-cd.md)).
 - One topic per pull request, with tests for new behaviour.
-- The `Pipeline gate` check must be green: lint, tests, SAST, SCA, IaC, secret, image scans and the
-  end-to-end + DAST run.
+- The `Pipeline gate` check must be green: lint, tests, SAST, SCA, IaC and secret scans; the
+  promotion PR into `production` also runs the end-to-end test.
 - Describe how you tested the change (unit, compose, Kubernetes), and what you did not test.
 
 By contributing you agree that your contributions are licensed under the [Apache License 2.0](LICENSE).

@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,14 +94,24 @@ func (p *fakePublisher) Publish(_ context.Context, subject, msgID string, v any)
 	return nil
 }
 
-type mapUnmasker map[string]string
+type mapUnmasker struct {
+	m       map[string]string
+	deleted []string
+}
 
-func (m mapUnmasker) ReverseMap(context.Context, string) (map[string]string, error) { return m, nil }
+func (u *mapUnmasker) ReverseMap(context.Context, string) (map[string]string, error) {
+	return u.m, nil
+}
+func (u *mapUnmasker) DeleteMap(_ context.Context, id string) error {
+	u.deleted = append(u.deleted, id)
+	return nil
+}
 
 func TestReviewFlowAndRedelivery(t *testing.T) {
 	store := &memStore{m: map[string]*Case{}}
 	pub := &fakePublisher{}
-	svc := &Service{Store: store, Unmasker: mapUnmasker(reverseMap), Events: pub, Now: time.Now}
+	unmasker := &mapUnmasker{m: reverseMap}
+	svc := &Service{Store: store, Unmasker: unmasker, Events: pub, Now: time.Now}
 	defer func() {
 		// created, reviewed, then created again (same ID, JetStream drops the duplicate)
 		want := []string{"created:inc-1", "reviewed:", "created:inc-1"}
@@ -121,8 +132,19 @@ func TestReviewFlowAndRedelivery(t *testing.T) {
 	if _, err := svc.Review(ctx, "inc-1", Review{Status: "maybe"}); err != ErrInvalidReview {
 		t.Fatalf("expected ErrInvalidReview, got %v", err)
 	}
+	for _, analyst := range []string{"bob\nINFO forged entry", strings.Repeat("a", 129)} {
+		if _, err := svc.Review(ctx, "inc-1", Review{Status: ReviewApproved, Analyst: analyst}); err != ErrInvalidAnalyst {
+			t.Fatalf("analyst %q: expected ErrInvalidAnalyst, got %v", analyst, err)
+		}
+	}
+	if len(unmasker.deleted) != 0 {
+		t.Fatalf("map deleted before review: %v", unmasker.deleted)
+	}
 	if _, err := svc.Review(ctx, "inc-1", Review{Status: ReviewApproved, Analyst: "bob"}); err != nil {
 		t.Fatal(err)
+	}
+	if len(unmasker.deleted) != 1 || unmasker.deleted[0] != "inc-1" {
+		t.Fatalf("reverse map not deleted after review: %v", unmasker.deleted)
 	}
 	// A redelivered triage result must not reset the review.
 	if _, err := svc.FromTriageResult(ctx, triageResult(nil, contracts.TriageStatusLLMFailed)); err != nil {
