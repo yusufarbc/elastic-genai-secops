@@ -57,11 +57,14 @@ func (c *MaskingClient) ReverseMap(ctx context.Context, incidentID string) (map[
 
 // DeleteMap implements Unmasker.
 func (c *MaskingClient) DeleteMap(ctx context.Context, incidentID string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.BaseURL+"/map/"+url.PathEscape(incidentID), nil)
+	// The host is fixed by configuration (MASKING_SERVICE_URL); the escaped ID can only fill the
+	// last path segment, so the request cannot be redirected to another server.
+	target := c.BaseURL + "/map/" + url.PathEscape(incidentID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, target, nil) //nolint:gosec // G704: see above
 	if err != nil {
 		return err
 	}
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.HTTP.Do(req) //nolint:gosec // G704: see above
 	if err != nil {
 		return err
 	}
