@@ -14,9 +14,10 @@ import (
 // tokenPattern matches masking-service tokens (prefix + 6 hex chars, see services/masking-service).
 var tokenPattern = regexp.MustCompile(`\b(?:user|host|ip|email|tok)_[0-9a-f]{6}\b`)
 
-// Unmasker resolves tokens for one incident.
+// Unmasker resolves tokens for one incident and drops its map once the case no longer needs it.
 type Unmasker interface {
 	ReverseMap(ctx context.Context, incidentID string) (map[string]string, error)
+	DeleteMap(ctx context.Context, incidentID string) error
 }
 
 // MaskingClient fetches reverse-maps from masking-service, the only holder of plaintext mappings.
@@ -52,6 +53,23 @@ func (c *MaskingClient) ReverseMap(ctx context.Context, incidentID string) (map[
 		return nil, err
 	}
 	return body.TokenToPlain, nil
+}
+
+// DeleteMap implements Unmasker.
+func (c *MaskingClient) DeleteMap(ctx context.Context, incidentID string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.BaseURL+"/map/"+url.PathEscape(incidentID), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("masking-service DELETE /map: HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // unmaskText replaces every known token in s with its plaintext; unknown tokens are left as-is.

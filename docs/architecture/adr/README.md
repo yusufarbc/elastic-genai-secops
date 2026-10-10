@@ -30,11 +30,11 @@ Format per entry: **Decision · Status · Date · Context · Alternatives · Rat
 | [ADR-022](022-mcp-server-read-only-masked.md) | MCP server is read-only and returns masked data |
 | [ADR-023](023-outbound-integrations.md) | Outbound integrations inform and record, they never act |
 | [ADR-024](024-staging-production-pipeline.md) | `staging` → `production` branch flow and a single DevSecOps pipeline |
+| [ADR-025](025-masking-reverse-map-lifecycle.md) | Reverse-map lifecycle: delete after review, TTL as a backstop |
 
 ## Open items to resolve (carry forward)
 
 - Confirm Vertex AI region + data-processing terms (ADR-006).
-- Define reverse-map lifecycle/TTL in `masking-service` (ADR-004).
 - Legal review: KVKK cross-border transfer with masking + in-region inference (ADR-004).
 - Determine regulatory log-retention period and set GCS retention accordingly (ADR-010).
 - Implement self-hosted embedding model for RAG (ADR-014 — ELSER blocked).
