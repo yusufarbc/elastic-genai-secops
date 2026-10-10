@@ -7,7 +7,7 @@ kind: Kustomization
 namespace: esm
 labels:
   - pairs:
-      app.kubernetes.io/part-of: elastic-secops-mastery
+      app.kubernetes.io/part-of: elastic-genai-secops
 resources:
   - namespace.yaml
   - elasticsearch.yaml

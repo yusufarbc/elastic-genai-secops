@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Load Elastic-SecOps-Mastery content into Elasticsearch and Kibana. Idempotent; safe to re-run.
+# Load Elastic GenAI SecOps content into Elasticsearch and Kibana. Idempotent; safe to re-run.
 #
 # Used by every deployment target:
 #   - bare metal: deploy/baremetal/ubuntu/elk_setup_ubuntu_jammy.sh
@@ -86,7 +86,7 @@ fi
 if [[ -n "${ESM_PLATFORM_PASSWORD:-}" ]]; then
   log "user esm_platform (role esm_platform)"
   es_put "/_security/user/esm_platform" \
-    "{\"password\":\"${ESM_PLATFORM_PASSWORD}\",\"roles\":[\"esm_platform\"],\"full_name\":\"Elastic-SecOps-Mastery platform services\"}"
+    "{\"password\":\"${ESM_PLATFORM_PASSWORD}\",\"roles\":[\"esm_platform\"],\"full_name\":\"Elastic GenAI SecOps platform services\"}"
 fi
 
 if [[ -n "${KIBANA_URL:-}" ]]; then

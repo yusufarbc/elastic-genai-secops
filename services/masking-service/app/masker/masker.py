@@ -1,5 +1,5 @@
 """
-PII pseudonymizer for Elastic-SecOps-Mastery.
+PII pseudonymizer for Elastic GenAI SecOps.
 
 Converts plaintext identifiers to stable tokens before any data leaves
 toward llm-orchestrator. Only this service holds the reverse-map.

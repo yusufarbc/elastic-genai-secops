@@ -2,7 +2,7 @@
 
 **Status:** Accepted · **Date:** 2026-06-30 · **Amended by:** [ADR-017](017-portable-message-bus.md)
 
-**Context:** The Elastic-SecOps-Mastery pipeline requires an async queue between alert-gateway → enrichment → masking → llm-orchestrator → case-service. Two realistic options: GCP Pub/Sub (managed, no ops) and Apache Kafka (self-hosted or Confluent Cloud).
+**Context:** The Elastic GenAI SecOps pipeline requires an async queue between alert-gateway → enrichment → masking → llm-orchestrator → case-service. Two realistic options: GCP Pub/Sub (managed, no ops) and Apache Kafka (self-hosted or Confluent Cloud).
 
 **Alternatives considered:**
 

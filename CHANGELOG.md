@@ -22,6 +22,9 @@ SOC prototype and an AI-SOC platform).
   review and Trivy IaC on every change; Trivy image scans weekly; the e2e test on promotion PRs.
   Semgrep, the OWASP ZAP scan, SBOMs, image signing and the Scorecard workflow were removed.
 - Relicensed under Apache-2.0 (ADR-020); identifiers renamed to the `esm` prefix (ADR-021).
+- Product renamed from Elastic-SecOps-Mastery to **Elastic GenAI SecOps** (repository
+  `elastic-genai-secops`, ADR-021). Images now publish to `ghcr.io/<owner>/elastic-genai-secops/<service>`;
+  the `esm` prefix of indices, roles and subjects is unchanged.
 
 ### Added
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in Elastic-SecOps-Mastery. Issues and pull requests are welcome.
+Thanks for your interest in Elastic GenAI SecOps. Issues and pull requests are welcome.
 
 ## Before you start
 
