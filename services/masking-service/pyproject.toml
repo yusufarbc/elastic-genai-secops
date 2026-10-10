@@ -10,7 +10,7 @@ dependencies = [
     "esm-common",
     "fastapi>=0.111",
     "uvicorn>=0.30",
-    "pydantic>=2.7",
+    "pydantic>=2.13.5",
     "structlog>=24.2",
     "elasticsearch[async]>=8.13,<9",
 ]
